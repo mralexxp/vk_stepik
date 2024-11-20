@@ -20,12 +20,13 @@ func main() {
 }
 
 func dirTree(w io.Writer, path string, pf bool) error {
-	printDir(path, "")
+	// TODO: Вернуть ошибки в корень
+	printDir(w, path, "")
 
 	return nil
 }
 
-func printDir(path string, preffix string) {
+func printDir(w io.Writer, path string, preffix string) {
 	dirs, err := os.ReadDir(path)
 	if err != nil {
 		panic(err)
@@ -47,9 +48,9 @@ func printDir(path string, preffix string) {
 				panic(err)
 			}
 
-			printer(preffix + connector + enity.Name() + " " + size + "\n")
+			printer(w, preffix+connector+enity.Name()+" "+size+"\n")
 		} else {
-			printer(preffix + connector + enity.Name() + "\n")
+			printer(w, preffix+connector+enity.Name()+"\n")
 		}
 
 		if enity.IsDir() {
@@ -61,13 +62,13 @@ func printDir(path string, preffix string) {
 				newPreffix = preffix + "│\t"
 			}
 
-			printDir(path+string(os.PathSeparator)+enity.Name(), newPreffix)
+			printDir(w, path+string(os.PathSeparator)+enity.Name(), newPreffix)
 		}
 	}
 }
 
-func printer(s string) {
-	fmt.Print(s)
+func printer(w io.Writer, s string) {
+	w.Write([]byte(s))
 }
 
 // Возвращает размер файла в байтах
