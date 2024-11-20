@@ -33,13 +33,24 @@ func printDir(path string, preffix string) {
 
 	for i, enity := range dirs {
 		connector := "├───"
+
 		isLast := i+1 == len(dirs)
+
 		if isLast {
 			connector = "└───"
 		}
+
 		printer(preffix + connector + enity.Name() + "\n")
+
 		if enity.IsDir() {
-			newPreffix := preffix + "│\t"
+			var newPreffix string
+
+			if isLast {
+				newPreffix = preffix + "\t"
+			} else {
+				newPreffix = preffix + "│\t"
+			}
+
 			printDir(path+string(os.PathSeparator)+enity.Name(), newPreffix)
 		}
 	}
