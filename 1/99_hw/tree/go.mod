@@ -1,3 +1,3 @@
-module hw
+module hw_99
 
-go 1.17
+go 1.22.4
