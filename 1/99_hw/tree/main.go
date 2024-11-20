@@ -40,7 +40,17 @@ func printDir(path string, preffix string) {
 			connector = "└───"
 		}
 
-		printer(preffix + connector + enity.Name() + "\n")
+		if !enity.IsDir() {
+			// TODO: size: (<size>b)
+			size, err := fileSize(path + string(os.PathSeparator) + enity.Name())
+			if err != nil {
+				panic(err)
+			}
+
+			printer(preffix + connector + enity.Name() + " " + size + "\n")
+		} else {
+			printer(preffix + connector + enity.Name() + "\n")
+		}
 
 		if enity.IsDir() {
 			var newPreffix string
@@ -58,4 +68,24 @@ func printDir(path string, preffix string) {
 
 func printer(s string) {
 	fmt.Print(s)
+}
+
+// Возвращает размер файла в байтах
+func fileSize(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	fs, err := file.Stat()
+	if err != nil {
+		return "", err
+	}
+
+	if size := fs.Size(); size == 0 {
+		return "(empty)", nil
+	} else {
+		return fmt.Sprintf("(%db)", fs.Size()), nil
+	}
 }
