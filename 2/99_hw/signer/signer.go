@@ -94,6 +94,20 @@ func SingleHash(in chan interface{}, out chan interface{}) {
 
 }
 func MultiHash(in chan interface{}, out chan interface{}) {
+	const op = "MultiHash"
 
+	data := <-in
+
+	var result string
+
+	if data, ok := data.(string); ok {
+		for th := 0; th <= 5; th++ {
+			step := crc32.ChecksumIEEE([]byte(strconv.Itoa(th) + data))
+			result += strconv.Itoa(int(step))
+
+		}
+	}
+
+	out <- result
 }
 func CombineResults(in chan interface{}, out chan interface{}) {}

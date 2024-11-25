@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestSingleHash(t *testing.T) {
 	type args struct {
@@ -17,21 +20,28 @@ func TestSingleHash(t *testing.T) {
 		args args
 		want string
 	}{
-		{name: "#IntTest",
+		{name: "#IntTest-0",
 			args: args{
 				in:   in,
 				out:  out,
 				data: 0,
 			},
 			want: "4108050209~502633748"},
-		{name: "#StringTest",
+		{name: "#IntTest-1",
 			args: args{
 				in:   in,
 				out:  out,
-				data: "abc",
+				data: 1,
 			},
-			// TODO: ...
-			want: "какой-то хеш из стрингов"},
+			want: "2212294583~709660146"},
+		//{name: "#StringTest",
+		//	args: args{
+		//		in:   in,
+		//		out:  out,
+		//		data: "abc",
+		//	},
+		//	// TODO: ...
+		//	want: "какой-то хеш из стрингов"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -40,7 +50,48 @@ func TestSingleHash(t *testing.T) {
 
 			// По очереди найти и сравнить полученные данные
 			md5Data := <-out
-			t.Logf("md5Data:%v", md5Data)
+			if md5Data.(string) != tt.want {
+				t.Fail()
+			}
+		})
+	}
+}
+
+func TestMultiHash(t *testing.T) {
+	type args struct {
+		in   chan interface{}
+		out  chan interface{}
+		data interface{}
+		want string
+	}
+
+	in := make(chan interface{})
+	out := make(chan interface{})
+
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{name: "#IntTest-0",
+			args: args{
+				in:   in,
+				out:  out,
+				data: 0,
+			},
+			want: "29568666068035183841425683795340791879727309630931025356555"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			go SingleHash(tt.args.in, tt.args.out)
+			go MultiHash(tt.args.out, tt.args.in)
+
+			in <- tt.args.data
+
+			time.Sleep(100 * time.Millisecond)
+
+			md5Data := <-out
+			t.Log(md5Data)
 			if md5Data.(string) != tt.want {
 				t.Fail()
 			}
