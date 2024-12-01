@@ -31,11 +31,13 @@ func UnpackReflect(u interface{}, data []byte) error {
 		case reflect.Int:
 			var value uint32
 			binary.Read(r, binary.LittleEndian, &value)
-			valueField.Set(reflect.ValueOf(int(value)))
+			valueField.Set(reflect.ValueOf(int(value))) // Устанавливаем значение в структуру
 		case reflect.String:
 			var lenRaw uint32
+			// Распаковка длины
 			binary.Read(r, binary.LittleEndian, &lenRaw)
 
+			// Слайс бай
 			dataRaw := make([]byte, lenRaw)
 			binary.Read(r, binary.LittleEndian, &dataRaw)
 

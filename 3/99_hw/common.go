@@ -43,7 +43,6 @@ func SlowSearch(out io.Writer) {
 	}
 
 	for i, user := range users {
-
 		isAndroid := false
 		isMSIE := false
 
