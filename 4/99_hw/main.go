@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"sort"
 	"strings"
@@ -38,18 +39,19 @@ const (
 
 func main() {
 
-	realUsers := SearchServer("", "Name", OrderByAsc, 0, 0)
+	realUsers := SearchServer("", "abc", OrderByDesc, 10, 0)
 	for _, realUser := range realUsers {
 		fmt.Println(realUser)
 	}
 
 }
 
-// В отдельном хендлере
-func SearchServer(query string, orderField string, orderBy int, limit int, offset int) []Usr {
-	// Если поле для сортировки задано неверно
+func SearchServer(w http.ResponseWriter, r *http.Request) {
+	//TODO: query string, orderField string, orderBy int, limit int, offset int
+	//все параметры из запроса request
 	if orderField != "Name" && orderField != "Id" && orderField != "Age" && orderField != "" {
-		return []Usr{}
+		// TODO: Вернуть ошибку в JSON
+		panic(" orderField not implement error")
 	}
 
 	type fileStruct struct {
@@ -57,7 +59,6 @@ func SearchServer(query string, orderField string, orderBy int, limit int, offse
 	}
 
 	users := make([]Usr, 0)
-	found := 0
 
 	file, err := os.Open(fileName)
 	if err != nil {
@@ -81,20 +82,9 @@ func SearchServer(query string, orderField string, orderBy int, limit int, offse
 		panic(err)
 	}
 
-LOOP:
 	for _, user := range fs.Root {
 		user.Name = user.FirstName + " " + user.LastName
 		if strings.Contains(user.Name, query) || strings.Contains(user.About, query) {
-			found++
-
-			if found == limit+offset+1 && limit != 0 {
-				break LOOP
-			}
-
-			if offset >= found {
-				continue
-			}
-
 			user.About = strings.Replace(user.About, "\n", "", 1)
 			users = append(users, user)
 		}
@@ -108,18 +98,20 @@ LOOP:
 		}
 
 		Reverse(users)
-
-		return users
 	case OrderByDesc:
 		err = SortSlices(users, orderField)
 		if err != nil {
 			panic(err)
 		}
+	}
 
-		return users
-	default:
+	users = users[offset:]
+
+	if limit >= len(users) || limit == 0 {
 		return users
 	}
+
+	return users[:limit]
 }
 
 func SortSlices(users []Usr, orderField string) error {
