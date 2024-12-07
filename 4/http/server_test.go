@@ -10,6 +10,8 @@ import (
 	"testing"
 )
 
+// TODO: Откатить!
+
 type TestCase struct {
 	ID      string
 	Result  *CheckoutResult
@@ -41,10 +43,12 @@ func CheckoutDummy(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// структура для тестирования запроса
 type Cart struct {
 	PaymentApiURL string
 }
 
+// Запрос
 func (c *Cart) Checkout(id string) (*CheckoutResult, error) {
 	url := c.PaymentApiURL + "?id=" + id
 	resp, err := http.Get(url)

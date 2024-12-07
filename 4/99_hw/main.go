@@ -1,120 +1,52 @@
 package main
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"sort"
-	"strings"
+	"strconv"
 )
-
-type Usr struct {
-	Id        int `xml:"id"`
-	Name      string
-	FirstName string `xml:"first_name"`
-	LastName  string `xml:"last_name"`
-	Age       int    `xml:"age"`
-	About     string `xml:"about"`
-	Gender    string `xml:"gender"`
-}
-
-type Request struct {
-	Query string `xml:"query"` // Ищем по полям записи `Name` и `About` просто подстроку, без регулярок.
-	// `Name` - это first_name + last_name из xml.
-	// Поле пустое-возвращаем все записи (поиск пустой подстроки всегда возвращает true) делаем только логику сортировки
-	OrderField string `xml:"order_field"` // По какому полю сортировать.
-	// Работает по полям `Id`, `Age`, `Name`, если пустой - то сортируем по `Name`
-	//если что-то другое - SearchServer ругается ошибкой.
-	OrderBy string `xml:"order_by"` // Направление сортировки (как есть, по убыванию, по возрастанию),
-	// в client.go есть соответствующие константы
-	Limit  int `xml:"limit"`  // Сколько записей вернуть
-	Offset int `xml:"offset"` // Начиная с какой записи вернуть (сколько пропустить с начала)
-}
 
 const (
 	fileName = "dataset.xml"
 )
 
 func main() {
+	http.HandleFunc("/", SearchServer)
 
-	realUsers := SearchServer("", "abc", OrderByDesc, 10, 0)
-	for _, realUser := range realUsers {
-		fmt.Println(realUser)
+	err := http.ListenAndServe("127.0.0.1:8080", nil)
+	if err != nil {
+		panic(err)
 	}
-
 }
 
+// Handler
 func SearchServer(w http.ResponseWriter, r *http.Request) {
-	//TODO: query string, orderField string, orderBy int, limit int, offset int
-	//все параметры из запроса request
-	if orderField != "Name" && orderField != "Id" && orderField != "Age" && orderField != "" {
-		// TODO: Вернуть ошибку в JSON
-		panic(" orderField not implement error")
-	}
-
-	type fileStruct struct {
-		Root []Usr `xml:"row"`
-	}
-
-	users := make([]Usr, 0)
-
-	file, err := os.Open(fileName)
+	sr, err := parseRequest(r)
 	if err != nil {
-		panic(err)
+		responseError(w, err)
+		return
 	}
-	defer func(file *os.File) {
-		err := file.Close()
-		if err != nil {
-			panic(err)
-		}
-	}(file)
 
-	dataXml, err := io.ReadAll(file)
+	users, err := Search(sr)
 	if err != nil {
-		panic(err)
+		responseError(w, NewErr(err, http.StatusInternalServerError))
+		return
 	}
 
-	fs := fileStruct{}
-	err = xml.Unmarshal(dataXml, &fs)
+	w.Header().Set("Content-Type", "application/json")
+	err = NewErr(json.NewEncoder(w).Encode(*users), http.StatusInternalServerError)
 	if err != nil {
-		panic(err)
+		// TODO: заменить панику: не падать во время обрыва
+		panic("write response error: " + err.Error())
 	}
-
-	for _, user := range fs.Root {
-		user.Name = user.FirstName + " " + user.LastName
-		if strings.Contains(user.Name, query) || strings.Contains(user.About, query) {
-			user.About = strings.Replace(user.About, "\n", "", 1)
-			users = append(users, user)
-		}
-	}
-
-	switch orderBy {
-	case OrderByAsc:
-		err = SortSlices(users, orderField)
-		if err != nil {
-			panic(err)
-		}
-
-		Reverse(users)
-	case OrderByDesc:
-		err = SortSlices(users, orderField)
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	users = users[offset:]
-
-	if limit >= len(users) || limit == 0 {
-		return users
-	}
-
-	return users[:limit]
 }
 
-func SortSlices(users []Usr, orderField string) error {
+func SortSlices(users []User, orderField string) CustomError {
 	switch orderField {
 	case "Id":
 		sort.Slice(users, func(i, j int) bool {
@@ -133,14 +65,107 @@ func SortSlices(users []Usr, orderField string) error {
 			return users[i].Name < users[j].Name
 		})
 	default:
-		return fmt.Errorf("invalid orderField: %s", orderField)
+		return NewErr(fmt.Errorf("unknown orderField: %s", orderField), http.StatusInternalServerError)
 	}
 
 	return nil
 }
 
-func Reverse(u []Usr) {
+func Reverse(u []User) {
 	for i, j := 0, len(u)-1; i < len(u)/2; i, j = i+1, j-1 {
 		u[i], u[j] = u[j], u[i]
 	}
+}
+
+func parseRequest(r *http.Request) (*SearchRequest, CustomError) {
+	sr := SearchRequest{}
+
+	sr.Query = r.URL.Query().Get("query")
+
+	orderField := r.URL.Query().Get("order_field")
+	if orderField != "Name" && orderField != "Id" && orderField != "Age" && orderField != "" {
+		return nil, NewErr(
+			fmt.Errorf("unknown order_field: %s", r.URL.Query().Get("order_field")),
+			http.StatusBadRequest,
+		)
+	}
+
+	sr.OrderField = orderField
+
+	if orderBy, err := strconv.Atoi(r.URL.Query().Get("order_by")); err != nil {
+		return nil, NewErr(
+			fmt.Errorf("unknown order_by: %v", r.URL.Query().Get("order_by")),
+			http.StatusBadRequest,
+		)
+	} else {
+		if orderBy > 1 || orderBy < -1 {
+			return nil, NewErr(
+				fmt.Errorf("unknown order_by: %v", r.URL.Query().Get("order_by")),
+				http.StatusBadRequest,
+			)
+		}
+		sr.OrderBy = orderBy
+	}
+
+	if limit, err := strconv.Atoi(r.URL.Query().Get("limit")); err != nil {
+		return nil, NewErr(
+			fmt.Errorf("unknown limit: %v", r.URL.Query().Get("limit")),
+			http.StatusBadRequest,
+		)
+	} else {
+		if limit < 0 {
+			return nil, NewErr(
+				fmt.Errorf("limit must be positive, recieve: %d", limit),
+				http.StatusBadRequest,
+			)
+		}
+		sr.Limit = limit
+	}
+
+	if offset, err := strconv.Atoi(r.URL.Query().Get("offset")); err != nil {
+		return nil, NewErr(
+			fmt.Errorf("unknown offset: %v", r.URL.Query().Get("offset")),
+			http.StatusBadRequest,
+		)
+	} else {
+		if offset < 0 {
+			return nil, NewErr(
+				fmt.Errorf("offset must be positive, recieve: %d", offset),
+				http.StatusBadRequest,
+			)
+		}
+		sr.Offset = offset
+	}
+
+	return &sr, nil
+}
+
+func LoadUsers(xmlFilename string) (*[]Usr, CustomError) {
+	file, err := os.Open(xmlFilename)
+	if err != nil {
+		return nil, NewErr(err, http.StatusInternalServerError)
+	}
+
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			panic(err)
+		}
+	}(file)
+
+	dataXml, err := io.ReadAll(file)
+	if err != nil {
+		return nil, NewErr(err, http.StatusInternalServerError)
+	}
+
+	fs := struct {
+		Root []Usr `xml:"row"`
+	}{}
+
+	err = xml.Unmarshal(dataXml, &fs)
+	if err != nil {
+		return nil, NewErr(err, http.StatusInternalServerError)
+	}
+
+	return &fs.Root, nil
 }

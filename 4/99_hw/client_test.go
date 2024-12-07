@@ -1,21 +1,11 @@
 package main
 
-import (
-	"net/http"
-	"net/http/httptest"
-	"testing"
-)
-
-var Server *httptest.Server
-
-func TestMain(m *testing.M) {
-	Server = httptest.NewServer(ishandler)
-}
+import "testing"
 
 func TestSearchServer(t *testing.T) {
+	// Запрос: srv.url + ? + params
+	// TODO: Создание структуры для поднятия сервера (с DB и нашим кодом?)
 
-}
+	// TODO: Структура для запросов (client.go?)
 
-func ishandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("hello world"))
 }
