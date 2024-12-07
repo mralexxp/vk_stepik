@@ -12,8 +12,6 @@ import (
 	"time"
 )
 
-// TODO: Откатить!
-
 var (
 	errTest = errors.New("testing")
 	client  = &http.Client{Timeout: time.Second}
