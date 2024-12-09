@@ -10,7 +10,6 @@ const (
 	useXML = fullXml
 
 	fullXml = "dataset.xml"
-	testXml = "mock_dataset.xml"
 )
 
 func main() {
@@ -40,7 +39,6 @@ func SearchServer(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	err = NewErr(json.NewEncoder(w).Encode(*users), http.StatusInternalServerError)
 	if err != nil {
-		// TODO: заменить панику: не падать во время обрыва
 		panic("write response error: " + err.Error())
 	}
 }
