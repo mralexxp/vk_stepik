@@ -2,23 +2,28 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/gorilla/mux"
 	"net/http"
 )
 
 const (
-	fileName = "dataset.xml"
+	useXML = fullXml
+
+	fullXml = "dataset.xml"
+	testXml = "mock_dataset.xml"
 )
 
 func main() {
-	http.HandleFunc("/", SearchServer)
+	router := mux.NewRouter()
+	router.Handle("/", http.HandlerFunc(SearchServer))
 
-	err := http.ListenAndServe("127.0.0.1:8080", nil)
+	err := http.ListenAndServe("127.0.0.1:8080", router)
 	if err != nil {
 		panic(err)
 	}
 }
 
-// Handler
+// SearchServer handler
 func SearchServer(w http.ResponseWriter, r *http.Request) {
 	sr, err := parseRequest(r)
 	if err != nil {

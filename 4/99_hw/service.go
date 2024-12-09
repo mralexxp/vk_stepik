@@ -25,7 +25,7 @@ type Usr struct {
 func Search(s *SearchRequest) (*[]User, CustomError) {
 	users := make([]User, 0)
 
-	allUsers, err := LoadUsers(fileName)
+	allUsers, err := LoadUsers(useXML)
 	if err != nil {
 		return nil, NewErr(err, http.StatusInternalServerError)
 	}
@@ -116,7 +116,8 @@ func parseRequest(r *http.Request) (*SearchRequest, CustomError) {
 	orderField := r.URL.Query().Get("order_field")
 	if orderField != "Name" && orderField != "Id" && orderField != "Age" && orderField != "" {
 		return nil, NewErr(
-			fmt.Errorf("unknown order_field: %s", r.URL.Query().Get("order_field")),
+			//fmt.Errorf("unknown order_field: %s", r.URL.Query().Get("order_field")),
+			fmt.Errorf("ErrorBadOrderField"),
 			http.StatusBadRequest,
 		)
 	}
@@ -144,9 +145,9 @@ func parseRequest(r *http.Request) (*SearchRequest, CustomError) {
 			http.StatusBadRequest,
 		)
 	} else {
-		if limit < 0 {
+		if limit <= 0 {
 			return nil, NewErr(
-				fmt.Errorf("limit must be positive, recieve: %d", limit),
+				fmt.Errorf("expected limit > 0, recieve: %d", limit),
 				http.StatusBadRequest,
 			)
 		}
