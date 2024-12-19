@@ -1,10 +1,14 @@
 package explorer
 
-import "database/sql"
+import (
+	"database/sql"
+	"net/http"
+)
 
 type Explorer struct {
 	DB     *sql.DB
 	Struct map[string]map[string]Column
+	Router *http.Handler
 }
 
 type Column struct {
