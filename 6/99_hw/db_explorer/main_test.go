@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"db_explorer/internal/explorer"
 	"fmt"
 	"reflect"
 	"testing"
@@ -97,7 +98,7 @@ func TestApis(t *testing.T) {
 	// возможно вам будет удобно закомментировать это чтобы смотреть результат после теста
 	defer CleanupTestApis(db)
 
-	handler, err := NewDbExplorer(db)
+	handler, err := explorer.NewDbExplorer(db)
 	if err != nil {
 		panic(err)
 	}

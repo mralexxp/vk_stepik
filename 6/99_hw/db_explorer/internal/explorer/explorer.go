@@ -1,9 +1,6 @@
-package main
+package explorer
 
-import (
-	"database/sql"
-	"net/http"
-)
+import "database/sql"
 
 type Explorer struct {
 	DB     *sql.DB
@@ -17,19 +14,6 @@ type Column struct {
 	Key       string      `sql:"Key"`
 	Default   interface{} `sql:"Default"` // Пока не придумал как использовать
 	Increment string      `sql:"increment"`
-}
-
-func NewDbExplorer(db *sql.DB) (http.Handler, error) {
-	e := &Explorer{DB: db}
-	e.InitDBStruct()
-
-	return e, nil
-}
-
-func (e *Explorer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(r.URL.Path + "\n"))
-	w.Write([]byte(r.URL.Query().Get("admin") + "\n"))
-
 }
 
 func (e *Explorer) InitDBStruct() {
