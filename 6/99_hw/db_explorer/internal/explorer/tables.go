@@ -1,10 +1,8 @@
 package explorer
 
-import "encoding/json"
-
 // Возвращает готовй к отправке слайс байт
 // Если есть ошибки вернет пустой слайс и ошибку
-func (e *Explorer) ShowTables() ([]byte, error) {
+func (e *Explorer) ShowTables() ([]string, error) {
 	query := "SHOW TABLES;"
 	rows, err := e.DB.Query(query)
 	if err != nil {
@@ -22,11 +20,6 @@ func (e *Explorer) ShowTables() ([]byte, error) {
 		}
 		tables = append(tables, table)
 	}
-
-	response, err := json.Marshal(tables)
-	if err != nil {
-		return nil, err
-	}
-
-	return response, nil
+	// TODO: маршаллингом занимаемся в ручке или пишем io.Writer?
+	return tables, nil
 }
