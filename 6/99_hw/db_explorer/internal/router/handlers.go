@@ -3,7 +3,6 @@ package router
 import (
 	"db_explorer/internal/errors"
 	"encoding/json"
-	"fmt"
 	"github.com/go-sql-driver/mysql"
 	"io"
 	"net/http"
@@ -108,7 +107,7 @@ func (h *Handlers) PutTuple(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := h.Explorer.PutTuple(table, data)
+	added, err := h.Explorer.PutTuple(table, data)
 	if err != nil {
 		// TODO: Статус-коды mySQL можно имплементировать в определенные ошибки, чтобы не отдавать юзеру встроенную ошибку
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
@@ -121,9 +120,7 @@ func (h *Handlers) PutTuple(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = SendResponse(w, http.StatusOK, map[string]interface{}{
-		"record": id,
-	})
+	err = SendResponse(w, http.StatusOK, added)
 	if err != nil {
 		panic(err)
 	}
@@ -158,7 +155,7 @@ func (h *Handlers) UpdateTuple(w http.ResponseWriter, r *http.Request) {
 			errors.SendJSONError(w, http.StatusInternalServerError, mysqlErr.Error())
 			return
 		} else {
-			errors.SendJSONError(w, http.StatusInternalServerError, err.Error())
+			errors.SendJSONError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 	}
@@ -190,17 +187,12 @@ func (h *Handlers) DeleteTuple(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	response := map[string]int{
+	err = SendResponse(w, http.StatusOK, map[string]interface{}{
 		"deleted": deleted,
-	}
-
-	err = json.NewEncoder(w).Encode(response)
+	})
 	if err != nil {
 		panic(err)
 	}
-
-	fmt.Println("DELETE")
 }
 
 func GetParams(r *http.Request) map[string]int {

@@ -2,6 +2,7 @@ package explorer
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -30,8 +31,6 @@ func (e *Explorer) ShowTables() ([]string, error) {
 }
 
 func (e *Explorer) ShowTable(tableName string, params map[string]int) ([]map[string]interface{}, error) {
-	// защита от инъекций, так как database/sql не поддерживает placeholders для имен таблиц
-	// Не проверяем на инъекции, так как пользователь не попадет в эту функцию при попытке инъекции
 	q := fmt.Sprintf("SELECT * FROM %s LIMIT %d OFFSET %d", tableName, params["limit"], params["offset"])
 	rows, err := e.DB.Query(q)
 	if err != nil {
@@ -61,12 +60,45 @@ func (e *Explorer) ShowTable(tableName string, params map[string]int) ([]map[str
 
 		tempResult := make(map[string]interface{}, 0)
 		for i, val := range values {
-			switch v := val.(type) {
-			case []byte:
-				tempResult[columns[i]] = string(v)
-			case nil:
-				tempResult[columns[i]] = nil
+			if column, ok := e.Struct[tableName][columns[i]]; ok {
+				switch {
+				case strings.Contains(column.Type, "text") || strings.Contains(column.Type, "varchar"):
+					val, ok := val.([]byte)
+					if ok {
+						tempResult[columns[i]] = string(val)
+						break
+					}
+
+					if column.Null == "YES" {
+						tempResult[columns[i]] = val
+					}
+
+				case strings.Contains(column.Type, "int"):
+					val, err = strconv.Atoi(string(val.([]byte)))
+					if err != nil {
+						return nil, err
+					}
+					tempResult[columns[i]] = val
+				case strings.Contains(column.Type, "float"):
+					tempResult[columns[i]] = val.(float64)
+				default:
+					tempResult[columns[i]] = val
+				}
+			} else {
+				// Если нет такой колонки
+				return nil, fmt.Errorf("column %s not found", columns[i])
 			}
+
+			//switch v := val.(type) {
+			//case []byte:
+			//	tempResult[columns[i]] = string(v)
+			//case nil:
+			//	tempResult[columns[i]] = nil
+			//case int:
+			//	tempResult[columns[i]] = v
+			//default:
+			//	tempResult[columns[i]] = v
+			//}
 
 		}
 		result = append(result, tempResult)
@@ -92,7 +124,16 @@ func (e *Explorer) GetTableStruct(tableName string) ([]string, error) {
 func (e *Explorer) GetTuple(tableName string, id int) (map[string]interface{}, error) {
 	result := make(map[string]interface{}, 0)
 
-	query := `SELECT * FROM` + ` ` + tableName + ` WHERE id=? LIMIT 1`
+	var priKey string
+
+	for k := range e.Struct[tableName] {
+		if e.Struct[tableName][k].Key == "PRI" {
+			priKey = k
+			break
+		}
+	}
+
+	query := `SELECT * FROM` + ` ` + tableName + ` WHERE ` + priKey + `=? LIMIT 1`
 
 	rows, err := e.DB.Query(query, id)
 	if err != nil {
@@ -122,6 +163,8 @@ func (e *Explorer) GetTuple(tableName string, id int) (map[string]interface{}, e
 				result[columns[i]] = string(v)
 			case nil:
 				result[columns[i]] = nil
+			default:
+				result[columns[i]] = v
 			}
 
 		}
@@ -131,44 +174,110 @@ func (e *Explorer) GetTuple(tableName string, id int) (map[string]interface{}, e
 
 }
 
-func (e *Explorer) PutTuple(tableName string, data map[string]interface{}) (int, error) {
-	// TODO: VALIDATE Increment:
+// Если не заполнены обязательные поля, то должны заменить на пустые значения и nil
+func emptyValue(data *map[string]interface{}, column map[string]Column) {
+	for k, _ := range column {
+		if _, ok := (*data)[k]; !ok && column[k].Null != "YES" {
+			switch {
+			case strings.Contains(column[k].Type, "text") || strings.Contains(column[k].Type, "varchar"):
+				(*data)[k] = ""
+			case strings.Contains(column[k].Type, "int"):
+				(*data)[k] = 0
+			default:
+				(*data)[k] = ""
+			}
+		}
+	}
+}
+
+// Меняет ковычки в запросах на более безопасные
+//func sanitizeValue(value interface{}) interface{} {
+//	if str, ok := value.(string); ok {
+//		return strings.ReplaceAll(str, "'", "\\'")
+//	}
+//	return value
+//}
+
+func (e *Explorer) PutTuple(tableName string, data map[string]interface{}) (map[string]interface{}, error) {
+	priKey := ""
+
 	for k, v := range data {
 		if stct, ok := e.Struct[tableName][k]; ok {
 			if stct.Increment != "" && v != "" {
 				delete(data, k)
 			}
+
+			if stct.Key == "PRI" {
+				priKey = k
+			}
 		} else {
-			return -1, fmt.Errorf("field %s not found", tableName)
+			delete(data, k)
+			// Почему-то мы должны игнорировать левые поля, хотя вернее вернуть ошибку
+			// return -1, fmt.Errorf("field %s not found", k)
 		}
 	}
 
-	query, placeholders, err := InsertConstructor(tableName, data)
+	// Не переданные обязательные поля должны заполнять значениями по умолчанию, если поел не может быть null
+	emptyValue(&data, e.Struct[tableName])
+
+	query, placeholders, err := e.InsertConstructor(tableName, data)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	exec, err := e.DB.Exec(query, placeholders...)
+	stmt, err := e.DB.Prepare(query)
 	if err != nil {
-		return 0, err
+		return nil, err
+	}
+
+	exec, err := stmt.Exec(placeholders...)
+	if err != nil {
+		return nil, err
 	}
 
 	id, err := exec.LastInsertId()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return int(id), nil
+	response := make(map[string]interface{}, 1)
+	response[priKey] = int(id)
+
+	return response, nil
 }
 
 func (e *Explorer) UpdateTuple(tableName string, id int, data map[string]interface{}) (int, error) {
-	//// TODO: Validate
-	err := ValidateData(e, tableName, data)
-	if err != nil {
-		return 0, err
+	// валидируем поля и значения
+	for k, v := range data {
+		// Проверка существования необходимых полей в нашей котаблице
+		column, ok := e.Struct[tableName][k]
+		if !ok {
+			return -1, fmt.Errorf("field %s not found", k)
+		}
+
+		// Если тип полей и данных не совпадает
+		validField, err := e.IsValidField(tableName, k, v)
+		if err != nil && !validField {
+			return -1, err
+		}
+
+		// ЕСЛИ ПОЛЕ PRIMARY, то изменять его нельзя!
+		if column.Key == "PRI" {
+			return -1, fmt.Errorf("field %s have invalid type", k)
+		}
 	}
 
-	query, placeholders, err := UpdateConstructor(tableName, id, data)
+	// Проверяем существование записей для изменений
+	found, err := e.IsExistRowFromPrimary(tableName, id)
+	if err != nil {
+		return -1, fmt.Errorf("record %d not found", id)
+	}
+
+	if !found {
+		return -1, fmt.Errorf("record not found")
+	}
+
+	query, placeholders, err := e.UpdateConstructor(tableName, id, data)
 	if err != nil {
 		return 0, err
 	}
@@ -187,7 +296,16 @@ func (e *Explorer) UpdateTuple(tableName string, id int, data map[string]interfa
 }
 
 func (e *Explorer) DeleteTuple(tableName string, id int) (int, error) {
-	query := fmt.Sprintf("DELETE FROM `%s` WHERE id=?", tableName)
+	var priKey string
+
+	for k := range e.Struct[tableName] {
+		if e.Struct[tableName][k].Key == "PRI" {
+			priKey = k
+			break
+		}
+	}
+
+	query := fmt.Sprintf("DELETE FROM `%s` WHERE %s=?", tableName, priKey)
 	result, err := e.DB.Exec(query, id)
 	if err != nil {
 		return 0, err
@@ -201,7 +319,7 @@ func (e *Explorer) DeleteTuple(tableName string, id int) (int, error) {
 	return int(deleted), nil
 }
 
-func InsertConstructor(tableName string, data map[string]interface{}) (query string, placeholders []interface{}, err error) {
+func (e *Explorer) InsertConstructor(tableName string, data map[string]interface{}) (query string, placeholders []interface{}, err error) {
 	// INSERT INTO <tablename>(<columns>) VALUES (<placeholders>)
 	placeholders = make([]interface{}, 0)
 	values := make([]string, 0)
@@ -225,11 +343,20 @@ func InsertConstructor(tableName string, data map[string]interface{}) (query str
 	return query, placeholders, nil
 }
 
-func UpdateConstructor(tableName string, id int, data map[string]interface{}) (query string, placeholders []interface{}, err error) {
+func (e *Explorer) UpdateConstructor(tableName string, id int, data map[string]interface{}) (query string, placeholders []interface{}, err error) {
 	// UPDATE <tablename>
 	// SET <field> = <value>,
 	// 	   <field> = <value>
 	// WHERE id = <id>
+
+	var priKey string
+
+	for k := range e.Struct[tableName] {
+		if e.Struct[tableName][k].Key == "PRI" {
+			priKey = k
+			break
+		}
+	}
 
 	query = "UPDATE " + tableName + " SET "
 	i := 0
@@ -248,7 +375,7 @@ func UpdateConstructor(tableName string, id int, data map[string]interface{}) (q
 		i++
 	}
 
-	query += " WHERE id = ?"
+	query += " WHERE " + priKey + " = ?"
 	placeholders = append(placeholders, id)
 
 	return query, placeholders, nil
