@@ -17,7 +17,6 @@ func (e *Explorer) IsExistRowFromPrimary(table string, id int) (bool, error) {
 		}
 	}
 
-	//noinspection SqlNoDataSourceInspection
 	query := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE %s = ?", table, priKey)
 	row := e.DB.QueryRow(query, id)
 
