@@ -87,7 +87,7 @@ func (e *Explorer) IsValidField(tableName string, field string, value interface{
 }
 
 func emptyValue(data *map[string]interface{}, column map[string]Column) {
-	for k, _ := range column {
+	for k := range column {
 		if _, ok := (*data)[k]; !ok && column[k].Null != "YES" {
 			switch {
 			case strings.Contains(column[k].Type, "text") || strings.Contains(column[k].Type, "varchar"):
