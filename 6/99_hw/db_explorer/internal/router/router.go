@@ -1,7 +1,7 @@
 package router
 
 import (
-	"db_explorer/internal/errors"
+	"db_explorer/internal/errorSender"
 	"db_explorer/internal/explorer"
 	"fmt"
 	"net/http"
@@ -41,7 +41,7 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	errors.SendJSONError(w, http.StatusNotFound, "unknown table")
+	errorSender.SendJSONError(w, http.StatusNotFound, "unknown table")
 }
 
 func (router *Router) endpoints(h *Handlers) {

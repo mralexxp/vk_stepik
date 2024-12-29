@@ -7,6 +7,12 @@ import (
 )
 
 func (e *Explorer) GetTables() ([]string, error) {
+	/*
+		По уму брать списки таблиц из сформированной структуры, но так как эта функция
+		используется для формирования тех самых таблиц, то необходимо писать вторую
+		отдельную функцию.
+	*/
+
 	query := "SHOW TABLES;"
 	rows, err := e.DB.Query(query)
 	if err != nil {
@@ -57,7 +63,7 @@ func (e *Explorer) ShowTable(tableName string, params map[string]int) ([]map[str
 			return nil, err
 		}
 
-		tempResult := make(map[string]interface{}, 0)
+		tempResult := make(map[string]interface{})
 		for i, val := range values {
 			if column, ok := e.Struct[tableName][columns[i]]; ok {
 				switch {
@@ -92,19 +98,6 @@ func (e *Explorer) ShowTable(tableName string, params map[string]int) ([]map[str
 	}
 
 	return result, nil
-}
-
-func (e *Explorer) GetTableStruct(tableName string) ([]string, error) {
-	result := make([]string, 0)
-
-	if _, ok := e.Struct[tableName]; ok {
-		for key := range e.Struct[tableName] {
-			result = append(result, key)
-		}
-		return result, nil
-	}
-
-	return []string{}, fmt.Errorf("table %s not found", tableName)
 }
 
 func (e *Explorer) GetTuple(tableName string, id int) (map[string]interface{}, error) {
@@ -179,7 +172,7 @@ func (e *Explorer) PutTuple(tableName string, data map[string]interface{}) (map[
 		}
 	}
 
-	// Не переданные обязательные поля должны заполнять значениями по умолчанию, если поел не может быть null
+	// Не переданные обязательные поля должны заполнять значениями по умолчанию согласно тестам
 	emptyValue(&data, e.Struct[tableName])
 
 	query, placeholders, err := e.InsertConstructor(tableName, data)
@@ -187,12 +180,7 @@ func (e *Explorer) PutTuple(tableName string, data map[string]interface{}) (map[
 		return nil, err
 	}
 
-	stmt, err := e.DB.Prepare(query)
-	if err != nil {
-		return nil, err
-	}
-
-	exec, err := stmt.Exec(placeholders...)
+	exec, err := e.DB.Exec(query, placeholders...)
 	if err != nil {
 		return nil, err
 	}
@@ -279,57 +267,4 @@ func (e *Explorer) DeleteTuple(tableName string, id int) (int, error) {
 	}
 
 	return int(deleted), nil
-}
-
-func (e *Explorer) InsertConstructor(tableName string, data map[string]interface{}) (query string, placeholders []interface{}, err error) {
-	// INSERT INTO <tablename>(<columns>) VALUES (<placeholders>)
-	placeholders = make([]interface{}, 0)
-	values := make([]string, 0)
-	columns := make([]string, 0)
-
-	for k, v := range data {
-		values = append(values, "?")
-		columns = append(columns, k)
-		placeholders = append(placeholders, v)
-	}
-	query = fmt.Sprintf("INSERT INTO %s(%s) VALUES(%s)",
-		tableName,
-		strings.Join(columns, ","),
-		strings.Join(values, ","),
-	)
-
-	return query, placeholders, nil
-}
-
-func (e *Explorer) UpdateConstructor(tableName string, id int, data map[string]interface{}) (query string, placeholders []interface{}, err error) {
-	var priKey string
-
-	for k := range e.Struct[tableName] {
-		if e.Struct[tableName][k].Key == "PRI" {
-			priKey = k
-			break
-		}
-	}
-
-	query = "UPDATE " + tableName + " SET "
-	i := 0
-	for k, v := range data {
-		query += fmt.Sprintf("%s = ?, ", k)
-		if v == "" {
-			placeholders = append(placeholders, nil)
-		} else {
-			placeholders = append(placeholders, v)
-		}
-		fmt.Println(len(data))
-		if len(data)-1 == i {
-			query = query[:len(query)-2]
-		}
-
-		i++
-	}
-
-	query += " WHERE " + priKey + " = ?"
-	placeholders = append(placeholders, id)
-
-	return query, placeholders, nil
 }

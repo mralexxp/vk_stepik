@@ -31,30 +31,6 @@ func (e *Explorer) IsExistRowFromPrimary(table string, id int) (bool, error) {
 	return true, nil
 }
 
-func (e *Explorer) IsExistRowFromData(table string, data map[string]interface{}) (bool, error) {
-	var scanner interface{}
-	ph := make([]interface{}, 0)
-	query := "SELECT * FROM " + table + " WHERE "
-
-	for k, v := range data {
-		ph = append(ph, v)
-		query += k + " = ?, "
-	}
-
-	query = query[:len(query)-2] + " LIMIT 1"
-
-	row := e.DB.QueryRow(query, ph...)
-
-	err := row.Scan(&scanner)
-	if errors.Is(err, sql.ErrNoRows) {
-		return false, nil
-	} else if err != nil {
-		return false, err
-	}
-
-	return true, nil
-}
-
 func (e *Explorer) IsValidField(tableName string, field string, value interface{}) (bool, error) {
 	const OP = "Explorer.IsValidField"
 
@@ -110,7 +86,6 @@ func (e *Explorer) IsValidField(tableName string, field string, value interface{
 	}
 }
 
-// Если не заполнены обязательные поля, то должны заменить на пустые значения и nil
 func emptyValue(data *map[string]interface{}, column map[string]Column) {
 	for k, _ := range column {
 		if _, ok := (*data)[k]; !ok && column[k].Null != "YES" {
@@ -124,4 +99,56 @@ func emptyValue(data *map[string]interface{}, column map[string]Column) {
 			}
 		}
 	}
+}
+
+func (e *Explorer) InsertConstructor(tableName string, data map[string]interface{}) (query string, placeholders []interface{}, err error) {
+	placeholders = make([]interface{}, 0)
+	values := make([]string, 0)
+	columns := make([]string, 0)
+
+	for k, v := range data {
+		values = append(values, "?")
+		columns = append(columns, k)
+		placeholders = append(placeholders, v)
+	}
+	query = fmt.Sprintf("INSERT INTO %s(%s) VALUES(%s)",
+		tableName,
+		strings.Join(columns, ","),
+		strings.Join(values, ","),
+	)
+
+	return query, placeholders, nil
+}
+
+func (e *Explorer) UpdateConstructor(tableName string, id int, data map[string]interface{}) (query string, placeholders []interface{}, err error) {
+	var priKey string
+
+	for k := range e.Struct[tableName] {
+		if e.Struct[tableName][k].Key == "PRI" {
+			priKey = k
+			break
+		}
+	}
+
+	query = "UPDATE " + tableName + " SET "
+	i := 0
+	for k, v := range data {
+		query += fmt.Sprintf("%s = ?, ", k)
+		if v == "" {
+			placeholders = append(placeholders, nil)
+		} else {
+			placeholders = append(placeholders, v)
+		}
+		fmt.Println(len(data))
+		if len(data)-1 == i {
+			query = query[:len(query)-2]
+		}
+
+		i++
+	}
+
+	query += " WHERE " + priKey + " = ?"
+	placeholders = append(placeholders, id)
+
+	return query, placeholders, nil
 }

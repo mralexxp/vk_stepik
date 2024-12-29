@@ -1,4 +1,4 @@
-package errors
+package errorSender
 
 import (
 	"encoding/json"
@@ -6,7 +6,6 @@ import (
 	"net/http"
 )
 
-// Отправка ошибок:
 func SendJSONError(w http.ResponseWriter, code int, text string) {
 	data := map[string]interface{}{
 		"error": text,

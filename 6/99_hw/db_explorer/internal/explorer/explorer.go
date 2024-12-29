@@ -21,7 +21,6 @@ type Column struct {
 }
 
 func (e *Explorer) InitDBStruct() {
-	// Получаем список таблиц
 	rows, err := e.DB.Query("SHOW TABLES;")
 	if err != nil {
 		// Без возврата ошибки, так как паника вызывается при запуске программы
@@ -43,13 +42,14 @@ func (e *Explorer) InitDBStruct() {
 		tables = append(tables, table)
 	}
 
-	rows.Close()
+	err = rows.Close()
+	if err != nil {
+		panic(err)
+	}
 
 	e.Struct = make(map[string]map[string]Column)
 
-	// Получаем поля таблиц
 	for _, table := range tables {
-		// !!! Обязательная валидация имени таблицы (var table) при вызове от пользователя !!!
 		e.Struct[table] = make(map[string]Column)
 		rows, err = e.DB.Query("SHOW COLUMNS FROM " + table)
 		if err != nil {
@@ -75,7 +75,9 @@ func (e *Explorer) InitDBStruct() {
 			e.Struct[table][field.Field] = field
 		}
 
-		rows.Close()
+		err := rows.Close()
+		if err != nil {
+			panic(err)
+		}
 	}
-
 }
