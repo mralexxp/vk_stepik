@@ -139,7 +139,7 @@ func (e *Explorer) UpdateConstructor(tableName string, id int, data map[string]i
 		} else {
 			placeholders = append(placeholders, v)
 		}
-		fmt.Println(len(data))
+
 		if len(data)-1 == i {
 			query = query[:len(query)-2]
 		}
