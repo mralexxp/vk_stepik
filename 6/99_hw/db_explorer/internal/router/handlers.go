@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/go-sql-driver/mysql"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,28 +15,27 @@ type Handlers struct {
 	Router
 }
 
-// TODO: ТАБЛИЦЫ ДОЛЖНЫ ПОЛУЧАТЬ НЕПОСРЕДСТВЕННО при инициализации
 func (h *Handlers) Index(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errors.SendJSONError(w, http.StatusMethodNotAllowed, "method not allowed: "+r.Method)
 		return
 	}
 
-	tables, err := h.Explorer.ShowTables()
+	tables, err := h.Explorer.GetTables()
 	if err != nil {
 		errors.SendJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
 	err = SendResponse(w, http.StatusOK, map[string]interface{}{
 		"tables": tables,
 	})
 	if err != nil {
-		panic(err)
+		log.Printf("error in sending response: %v", err)
 	}
 }
 
-// Получаем содержимое таблиц. Параметры limit и offset по умолчанию 5 и 0 при отсутствии.
-func (h *Handlers) GetTableValues(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) GetTableTuples(w http.ResponseWriter, r *http.Request) {
 	table := strings.Split(r.URL.Path, "/")[1]
 
 	response, err := h.Explorer.ShowTable(table, GetParams(r))
@@ -48,12 +48,12 @@ func (h *Handlers) GetTableValues(w http.ResponseWriter, r *http.Request) {
 		"records": response,
 	})
 	if err != nil {
-		panic(err)
+		log.Printf("error in sending response: %v", err)
 	}
 }
 
 // GET: Получение записи по ID
-func (h *Handlers) ShowTuple(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) GetTuple(w http.ResponseWriter, r *http.Request) {
 	URL := strings.Split(r.URL.Path, "/")
 	if len(URL) != 3 {
 		errors.SendJSONError(w, http.StatusBadRequest, "bad request URL: "+r.URL.Path)

@@ -15,6 +15,7 @@ func NewDbExplorer(db *sql.DB) (http.Handler, error) {
 
 	r := router.NewRouter(e)
 
+	// Инициализации структуры базы данных
 	e.InitDBStruct()
 
 	return r, nil

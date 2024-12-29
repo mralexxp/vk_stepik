@@ -24,11 +24,11 @@ func NewRouter(e *explorer.Explorer) http.Handler {
 	return &r
 }
 
-// Роутер
 func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// TODO: Прикрутить полноценный MW
 	TempMiddleWare(&w)
+
 	target := r.Method + r.URL.Path
-	fmt.Println(target)
 	splitPath := strings.Split(target, "/")
 
 	// Route с ID
@@ -47,24 +47,20 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (router *Router) endpoints(h *Handlers) {
 	router.Route = make(map[string]func(http.ResponseWriter, *http.Request))
 
-	// Главная со списком таблиц
 	router.Route["GET/"] = func(w http.ResponseWriter, r *http.Request) { h.Index(w, r) }
 
-	// Создаем статические пути к нашим таблицам
-	tables, err := router.Explorer.ShowTables()
+	tables, err := router.Explorer.GetTables()
 	if err != nil {
 		panic(err)
 	}
 
 	for _, table := range tables {
-		router.Route[fmt.Sprintf("GET/%s", table)] = h.GetTableValues
-		router.Route[fmt.Sprintf("GET/%s/", table)] = h.GetTableValues
-		router.Route[fmt.Sprintf("GET/%s/id", table)] = h.ShowTuple
+		router.Route[fmt.Sprintf("GET/%s", table)] = h.GetTableTuples
+		router.Route[fmt.Sprintf("GET/%s/", table)] = h.GetTableTuples
+		router.Route[fmt.Sprintf("GET/%s/id", table)] = h.GetTuple
 		router.Route[fmt.Sprintf("PUT/%s/", table)] = h.PutTuple
 		router.Route[fmt.Sprintf("PUT/%s", table)] = h.PutTuple
 		router.Route[fmt.Sprintf("POST/%s/id", table)] = h.UpdateTuple
 		router.Route[fmt.Sprintf("DELETE/%s/id", table)] = h.DeleteTuple
 	}
-
-	// GET: Отдаем одну запись по ID
 }

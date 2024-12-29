@@ -6,9 +6,7 @@ import (
 	"strings"
 )
 
-// Возвращает готовй к отправке слайс байт
-// Если есть ошибки вернет пустой слайс и ошибку
-func (e *Explorer) ShowTables() ([]string, error) {
+func (e *Explorer) GetTables() ([]string, error) {
 	query := "SHOW TABLES;"
 	rows, err := e.DB.Query(query)
 	if err != nil {
@@ -18,15 +16,16 @@ func (e *Explorer) ShowTables() ([]string, error) {
 	defer rows.Close()
 
 	tables := make([]string, 0)
+	var table string
+
 	for rows.Next() {
-		table := ""
 		err := rows.Scan(&table)
 		if err != nil {
 			return nil, err
 		}
 		tables = append(tables, table)
 	}
-	// TODO: маршаллингом занимаемся в ручке или пишем io.Writer?
+
 	return tables, nil
 }
 
@@ -88,23 +87,10 @@ func (e *Explorer) ShowTable(tableName string, params map[string]int) ([]map[str
 				// Если нет такой колонки
 				return nil, fmt.Errorf("column %s not found", columns[i])
 			}
-
-			//switch v := val.(type) {
-			//case []byte:
-			//	tempResult[columns[i]] = string(v)
-			//case nil:
-			//	tempResult[columns[i]] = nil
-			//case int:
-			//	tempResult[columns[i]] = v
-			//default:
-			//	tempResult[columns[i]] = v
-			//}
-
 		}
 		result = append(result, tempResult)
 	}
 
-	// ВЕРНУТЬ []map[<field_name>]<value>
 	return result, nil
 }
 
@@ -173,30 +159,6 @@ func (e *Explorer) GetTuple(tableName string, id int) (map[string]interface{}, e
 	return result, nil
 
 }
-
-// Если не заполнены обязательные поля, то должны заменить на пустые значения и nil
-func emptyValue(data *map[string]interface{}, column map[string]Column) {
-	for k, _ := range column {
-		if _, ok := (*data)[k]; !ok && column[k].Null != "YES" {
-			switch {
-			case strings.Contains(column[k].Type, "text") || strings.Contains(column[k].Type, "varchar"):
-				(*data)[k] = ""
-			case strings.Contains(column[k].Type, "int"):
-				(*data)[k] = 0
-			default:
-				(*data)[k] = ""
-			}
-		}
-	}
-}
-
-// Меняет ковычки в запросах на более безопасные
-//func sanitizeValue(value interface{}) interface{} {
-//	if str, ok := value.(string); ok {
-//		return strings.ReplaceAll(str, "'", "\\'")
-//	}
-//	return value
-//}
 
 func (e *Explorer) PutTuple(tableName string, data map[string]interface{}) (map[string]interface{}, error) {
 	priKey := ""
@@ -328,10 +290,6 @@ func (e *Explorer) InsertConstructor(tableName string, data map[string]interface
 	for k, v := range data {
 		values = append(values, "?")
 		columns = append(columns, k)
-		//if v == "" {
-		//	placeholders = append(placeholders, nil)
-		//	continue
-		//}
 		placeholders = append(placeholders, v)
 	}
 	query = fmt.Sprintf("INSERT INTO %s(%s) VALUES(%s)",
@@ -344,11 +302,6 @@ func (e *Explorer) InsertConstructor(tableName string, data map[string]interface
 }
 
 func (e *Explorer) UpdateConstructor(tableName string, id int, data map[string]interface{}) (query string, placeholders []interface{}, err error) {
-	// UPDATE <tablename>
-	// SET <field> = <value>,
-	// 	   <field> = <value>
-	// WHERE id = <id>
-
 	var priKey string
 
 	for k := range e.Struct[tableName] {

@@ -2,6 +2,7 @@ package errors
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 )
 
@@ -15,7 +16,6 @@ func SendJSONError(w http.ResponseWriter, code int, text string) {
 	w.WriteHeader(code)
 	err := json.NewEncoder(w).Encode(data)
 	if err != nil {
-		// TODO: Не паникуем
-		panic(err)
+		log.Printf("Error encoding JSON: %v", err)
 	}
 }

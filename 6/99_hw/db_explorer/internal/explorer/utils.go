@@ -32,8 +32,6 @@ func (e *Explorer) IsExistRowFromPrimary(table string, id int) (bool, error) {
 }
 
 func (e *Explorer) IsExistRowFromData(table string, data map[string]interface{}) (bool, error) {
-	// Модем возвращать количество найденных записей:
-	// query := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE id=%d", table, id)
 	var scanner interface{}
 	ph := make([]interface{}, 0)
 	query := "SELECT * FROM " + table + " WHERE "
@@ -84,8 +82,8 @@ func (e *Explorer) IsValidField(tableName string, field string, value interface{
 				if strings.Contains(column.Type, "float") {
 					return true, nil
 				}
-				return false, fmt.Errorf("field %s have invalid type", field)
 
+				return false, fmt.Errorf("field %s have invalid type", field)
 			} else {
 				return false, fmt.Errorf(OP + ": unkown error")
 			}
@@ -104,12 +102,26 @@ func (e *Explorer) IsValidField(tableName string, field string, value interface{
 			}
 
 			return false, fmt.Errorf("field %s have invalid type", field)
-
 		default:
 			return false, fmt.Errorf("%s: unkown error", OP)
-
 		}
 	} else {
 		return false, fmt.Errorf("field %s have invalid type", field)
+	}
+}
+
+// Если не заполнены обязательные поля, то должны заменить на пустые значения и nil
+func emptyValue(data *map[string]interface{}, column map[string]Column) {
+	for k, _ := range column {
+		if _, ok := (*data)[k]; !ok && column[k].Null != "YES" {
+			switch {
+			case strings.Contains(column[k].Type, "text") || strings.Contains(column[k].Type, "varchar"):
+				(*data)[k] = ""
+			case strings.Contains(column[k].Type, "int"):
+				(*data)[k] = 0
+			default:
+				(*data)[k] = ""
+			}
+		}
 	}
 }
