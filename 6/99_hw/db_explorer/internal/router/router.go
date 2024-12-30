@@ -63,4 +63,5 @@ func (router *Router) endpoints(h *Handlers) {
 		router.Route[fmt.Sprintf("POST/%s/id", table)] = h.UpdateTuple
 		router.Route[fmt.Sprintf("DELETE/%s/id", table)] = h.DeleteTuple
 	}
+
 }
