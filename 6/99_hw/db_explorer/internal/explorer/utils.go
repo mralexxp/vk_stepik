@@ -152,4 +152,5 @@ func (e *Explorer) UpdateConstructor(tableName string, id int, data map[string]i
 	placeholders = append(placeholders, id)
 
 	return query, placeholders, nil
+
 }
