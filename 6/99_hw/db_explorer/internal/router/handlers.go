@@ -1,7 +1,6 @@
 package router
 
 import (
-	"db_explorer/internal/errorSender"
 	"encoding/json"
 	"errors"
 	"github.com/go-sql-driver/mysql"
@@ -18,13 +17,13 @@ type Handlers struct {
 
 func (h *Handlers) Index(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		errorSender.SendJSONError(w, http.StatusMethodNotAllowed, "method not allowed: "+r.Method)
+		SendJSONError(w, http.StatusMethodNotAllowed, "method not allowed: "+r.Method)
 		return
 	}
 
 	tables, err := h.Explorer.GetTables()
 	if err != nil {
-		errorSender.SendJSONError(w, http.StatusInternalServerError, err.Error())
+		SendJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -41,7 +40,7 @@ func (h *Handlers) GetTableTuples(w http.ResponseWriter, r *http.Request) {
 
 	response, err := h.Explorer.ShowTable(table, GetParams(r))
 	if err != nil {
-		errorSender.SendJSONError(w, http.StatusInternalServerError, err.Error())
+		SendJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -56,7 +55,7 @@ func (h *Handlers) GetTableTuples(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) GetTuple(w http.ResponseWriter, r *http.Request) {
 	URL := strings.Split(r.URL.Path, "/")
 	if len(URL) != 3 {
-		errorSender.SendJSONError(w, http.StatusBadRequest, "bad request URL: "+r.URL.Path)
+		SendJSONError(w, http.StatusBadRequest, "bad request URL: "+r.URL.Path)
 		return
 	}
 
@@ -64,18 +63,18 @@ func (h *Handlers) GetTuple(w http.ResponseWriter, r *http.Request) {
 
 	id, err := strconv.Atoi(URL[2])
 	if err != nil {
-		errorSender.SendJSONError(w, http.StatusBadRequest, err.Error())
+		SendJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	response, err = h.Explorer.GetTuple(URL[1], id)
 	if err != nil {
-		errorSender.SendJSONError(w, http.StatusInternalServerError, err.Error())
+		SendJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	if len(response) == 0 {
-		errorSender.SendJSONError(w, http.StatusNotFound, "record not found")
+		SendJSONError(w, http.StatusNotFound, "record not found")
 		return
 	}
 
@@ -92,7 +91,7 @@ func (h *Handlers) PutTuple(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		errorSender.SendJSONError(w, http.StatusInternalServerError, err.Error())
+		SendJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -101,7 +100,7 @@ func (h *Handlers) PutTuple(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{}
 	err = json.Unmarshal(body, &data)
 	if err != nil {
-		errorSender.SendJSONError(w, http.StatusBadRequest, err.Error())
+		SendJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -109,11 +108,11 @@ func (h *Handlers) PutTuple(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Статус-коды mySQL можно имплементировать в определенные ошибки, чтобы не отдавать юзеру встроенную ошибку
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
-			errorSender.SendJSONError(w, http.StatusInternalServerError, mysqlErr.Error())
+			SendJSONError(w, http.StatusInternalServerError, mysqlErr.Error())
 			return
 
 		} else {
-			errorSender.SendJSONError(w, http.StatusInternalServerError, err.Error())
+			SendJSONError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 	}
@@ -128,21 +127,21 @@ func (h *Handlers) UpdateTuple(w http.ResponseWriter, r *http.Request) {
 	URL := strings.Split(r.URL.Path, "/")
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		errorSender.SendJSONError(w, http.StatusInternalServerError, err.Error())
+		SendJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	data := make(map[string]interface{})
 	err = json.Unmarshal(body, &data)
 	if err != nil {
-		errorSender.SendJSONError(w, http.StatusBadRequest, err.Error())
+		SendJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	table := URL[1]
 	id, err := strconv.Atoi(URL[2])
 	if err != nil {
-		errorSender.SendJSONError(w, http.StatusBadRequest, err.Error())
+		SendJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -151,11 +150,11 @@ func (h *Handlers) UpdateTuple(w http.ResponseWriter, r *http.Request) {
 		var mysqlErr *mysql.MySQLError
 
 		if errors.As(err, &mysqlErr) {
-			errorSender.SendJSONError(w, http.StatusInternalServerError, mysqlErr.Error())
+			SendJSONError(w, http.StatusInternalServerError, mysqlErr.Error())
 			return
 		}
 
-		errorSender.SendJSONError(w, http.StatusBadRequest, err.Error())
+		SendJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -172,7 +171,7 @@ func (h *Handlers) DeleteTuple(w http.ResponseWriter, r *http.Request) {
 	table := URL[1]
 	id, err := strconv.Atoi(URL[2])
 	if err != nil {
-		errorSender.SendJSONError(w, http.StatusBadRequest, err.Error())
+		SendJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -181,11 +180,11 @@ func (h *Handlers) DeleteTuple(w http.ResponseWriter, r *http.Request) {
 		var mysqlErr *mysql.MySQLError
 
 		if errors.As(err, &mysqlErr) {
-			errorSender.SendJSONError(w, http.StatusInternalServerError, mysqlErr.Error())
+			SendJSONError(w, http.StatusInternalServerError, mysqlErr.Error())
 			return
 		}
 
-		errorSender.SendJSONError(w, http.StatusBadRequest, err.Error())
+		SendJSONError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
