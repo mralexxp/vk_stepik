@@ -1,6 +1,7 @@
 package explorer
 
 import (
+	"db_explorer/internal/models"
 	"fmt"
 	"strconv"
 	"strings"
@@ -35,8 +36,8 @@ func (e *Explorer) GetTables() ([]string, error) {
 	return tables, nil
 }
 
-func (e *Explorer) ShowTable(tableName string, params map[string]int) ([]map[string]interface{}, error) {
-	q := fmt.Sprintf("SELECT * FROM %s LIMIT %d OFFSET %d", tableName, params["limit"], params["offset"])
+func (e *Explorer) ShowTable(tableName string, params *models.QueryParams) ([]map[string]interface{}, error) {
+	q := fmt.Sprintf("SELECT * FROM %s LIMIT %d OFFSET %d", tableName, params.Limit, params.Offset)
 	rows, err := e.DB.Query(q)
 	if err != nil {
 		return nil, err

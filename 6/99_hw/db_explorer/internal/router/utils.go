@@ -1,27 +1,20 @@
 package router
 
 import (
+	"db_explorer/internal/models"
 	"net/http"
 	"strconv"
 )
 
-func GetParams(r *http.Request) map[string]int {
-	params := make(map[string]int)
+func GetParams(r *http.Request) *models.QueryParams {
+	params := models.NewQueryParams()
 
-	var limit int
-	var offset int
-	var err error
-
-	if limit, err = strconv.Atoi(r.URL.Query().Get("limit")); err == nil {
-		params["limit"] = limit
-	} else {
-		params["limit"] = 5
+	if limit, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil {
+		params.Limit = limit
 	}
 
-	if offset, err = strconv.Atoi(r.URL.Query().Get("offset")); err == nil {
-		params["offset"] = offset
-	} else {
-		params["offset"] = 0
+	if offset, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil {
+		params.Offset = offset
 	}
 
 	return params
