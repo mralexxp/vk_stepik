@@ -1,4 +1,4 @@
-package models
+package dto
 
 type QueryParams struct {
 	Offset int

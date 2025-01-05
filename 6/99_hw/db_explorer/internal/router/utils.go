@@ -1,13 +1,13 @@
 package router
 
 import (
-	"db_explorer/internal/models"
+	"db_explorer/internal/dto"
 	"net/http"
 	"strconv"
 )
 
-func GetParams(r *http.Request) *models.QueryParams {
-	params := models.NewQueryParams()
+func GetParams(r *http.Request) *dto.QueryParams {
+	params := dto.NewQueryParams()
 
 	if limit, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil {
 		params.Limit = limit
