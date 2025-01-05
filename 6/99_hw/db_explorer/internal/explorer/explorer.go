@@ -20,6 +20,10 @@ type Column struct {
 	Increment string      `sql:"increment"`
 }
 
+func NewExplorer(DB *sql.DB) *Explorer {
+	return &Explorer{DB: DB}
+}
+
 func (e *Explorer) InitDBStruct() {
 	rows, err := e.DB.Query("SHOW TABLES;")
 	if err != nil {

@@ -9,10 +9,7 @@ import (
 )
 
 func NewDbExplorer(db *sql.DB) (http.Handler, error) {
-	e := &explorer.Explorer{
-		DB: db,
-	}
-
+	e := explorer.NewExplorer(db)
 	r := router.NewRouter(e)
 
 	// Инициализации структуры базы данных
