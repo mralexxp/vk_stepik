@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -15,17 +16,37 @@ import (
 // TODO: ACL должен быть реализован на middleware
 // TODO: ACL в MAP?
 
+func ACLInterceptor(
+	ctx context.Context,
+	req interface{},
+	info *grpc.UnaryServerInfo,
+	handler grpc.UnaryHandler,
+) (interface{}, error) {
+
+	fmt.Println()
+
+	reply, err := handler(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return reply, nil
+}
+
 func StartMyMicroservice(ctx context.Context, listenAddr string, ACLData string) error {
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		return err
 	}
 
-	adminServer := grpc.NewServer()
+	server := grpc.NewServer(
+		grpc.UnaryInterceptor(ACLInterceptor),
+	)
 
-	RegisterBizServer(adminServer, NewBiz())
+	RegisterBizServer(server, NewBiz())
+	RegisterAdminServer(server, NewAdmin())
 
-	go StartBiz(ctx, adminServer, listener)
+	go StartBiz(ctx, server, listener)
 
 	return nil
 }
@@ -34,25 +55,6 @@ func StartBiz(ctx context.Context, server *grpc.Server, listener net.Listener) {
 	go server.Serve(listener)
 	<-ctx.Done()
 	server.GracefulStop()
-}
-
-func NewBiz() *Biz {
-	return &Biz{}
-}
-
-type Biz struct {
-	ACL map[string]string
-	UnimplementedBizServer
-}
-
-func (b *Biz) Check(context.Context, *Nothing) (*Nothing, error) {
-	return &Nothing{}, nil
-}
-func (b *Biz) Add(context.Context, *Nothing) (*Nothing, error) {
-	return &Nothing{}, nil
-}
-func (b *Biz) Test(context.Context, *Nothing) (*Nothing, error) {
-	return &Nothing{}, nil
 }
 
 // тут вы пишете код
