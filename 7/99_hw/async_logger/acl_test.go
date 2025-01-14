@@ -121,6 +121,22 @@ func TestACL_CheckAccess(t *testing.T) {
 			},
 			want: true,
 		},
+		{
+			name: "#6: ACL.CheckAccess: Empty consumer",
+			args: args{
+				consumer:        "",
+				RequestedMethod: "/main.Biz/check",
+			},
+			want: false,
+		},
+		{
+			name: "#7: ACL.CheckAccess: Empty methods",
+			args: args{
+				consumer:        "biz_admin",
+				RequestedMethod: "123",
+			},
+			want: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

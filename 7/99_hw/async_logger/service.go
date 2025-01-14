@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/grpc/tap"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/runtime/protoimpl"
 	"net"
@@ -13,53 +14,123 @@ import (
 	"sync"
 )
 
-// TODO: ACL должен быть реализован на middleware
-// TODO: ACL в MAP?
+//type Service struct {
+//	Manager BizManager
+//	Admin   EventLogger
+//}
 
-func ACLInterceptor(
+type Service struct {
+	M Biz
+	A Admin
+}
+
+type AccessChecker interface {
+	CheckAccess(string, string) bool
+}
+
+type BizManager interface {
+	Check(context.Context, *Nothing) (*Nothing, error)
+	Add(context.Context, *Nothing) (*Nothing, error)
+	Test(context.Context, *Nothing) (*Nothing, error)
+}
+
+type EventLogger interface {
+	Statistics(*StatInterval, Admin_StatisticsServer) error
+	Logging(*Nothing, Admin_LoggingServer) error
+	TapLogger(ctx context.Context, info *tap.Info) (context.Context, error)
+}
+
+func StartMyMicroservice(ctx context.Context, listenAddr string, ACLData string) error {
+	svc, err := NewServer(ACLData)
+	if err != nil {
+		return err
+	}
+
+	listener, err := net.Listen("tcp", listenAddr)
+	if err != nil {
+		return err
+	}
+
+	svc.GRPCServer = grpc.NewServer(
+		grpc.UnaryInterceptor(svc.UnaryAccessInterceptor),
+		grpc.StreamInterceptor(svc.StreamAccessInterceptor),
+		grpc.InTapHandle(svc.Service.A.TapLogger),
+	)
+
+	RegisterBizServer(svc.GRPCServer, NewBiz())
+	RegisterAdminServer(svc.GRPCServer, NewAdmin())
+
+	go svc.Start(ctx, svc.GRPCServer, listener)
+	return nil
+}
+
+type Server struct {
+	ACL        AccessChecker
+	GRPCServer *grpc.Server
+	Service    Service
+}
+
+func NewServer(ACLData string) (*Server, error) {
+	ACL, err := NewACL(ACLData)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Server{
+		ACL: ACL,
+	}, nil
+}
+
+func (s *Server) Start(ctx context.Context, server *grpc.Server, listener net.Listener) {
+	go server.Serve(listener)
+
+	// Ожидаем сигнал завершения через контекст
+	<-ctx.Done()
+
+	s.Stop()
+}
+
+func (s *Server) Stop() {
+	close(s.Service.A.Logs)
+	s.GRPCServer.GracefulStop()
+}
+
+func (s *Server) UnaryAccessInterceptor(
 	ctx context.Context,
 	req interface{},
 	info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler,
 ) (interface{}, error) {
 
-	fmt.Println()
-
-	reply, err := handler(ctx, req)
-	if err != nil {
-		return nil, err
+	md, _ := metadata.FromIncomingContext(ctx)
+	if val, ok := md["consumer"]; ok {
+		if s.ACL.CheckAccess(val[0], info.FullMethod) {
+			return handler(ctx, req)
+		}
 	}
 
-	return reply, nil
+	return nil, status.Errorf(codes.Unauthenticated, "access denied for %s", info.FullMethod)
 }
 
-func StartMyMicroservice(ctx context.Context, listenAddr string, ACLData string) error {
-	listener, err := net.Listen("tcp", listenAddr)
-	if err != nil {
-		return err
+func (s *Server) StreamAccessInterceptor(
+	srv interface{},
+	ss grpc.ServerStream,
+	info *grpc.StreamServerInfo,
+	handler grpc.StreamHandler,
+) error {
+	ctx := ss.Context()
+
+	md, _ := metadata.FromIncomingContext(ctx)
+	if val, ok := md["consumer"]; ok {
+		if s.ACL.CheckAccess(val[0], info.FullMethod) {
+			return handler(srv, ss)
+		}
 	}
 
-	server := grpc.NewServer(
-		grpc.UnaryInterceptor(ACLInterceptor),
-	)
-
-	RegisterBizServer(server, NewBiz())
-	RegisterAdminServer(server, NewAdmin())
-
-	go StartBiz(ctx, server, listener)
-
-	return nil
+	return status.Errorf(codes.Unauthenticated, "access denied for %s", info.FullMethod)
 }
 
-func StartBiz(ctx context.Context, server *grpc.Server, listener net.Listener) {
-	go server.Serve(listener)
-	<-ctx.Done()
-	server.GracefulStop()
-}
-
-// тут вы пишете код
-// обращаю ваше внимание - в этом задании запрещены глобальные переменные
-
+// ================== НИЖЕ идут PB-файлы ================================
 // service_grpc.pb.go
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.

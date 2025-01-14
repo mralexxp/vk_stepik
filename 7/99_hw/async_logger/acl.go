@@ -23,7 +23,7 @@ func NewACL(ACLData string) (*ACL, error) {
 func (acl *ACL) CheckAccess(consumer, RequestedMethod string) bool {
 	if methods, ok := acl.Directory[consumer]; ok {
 		for _, AvailableMethod := range methods {
-			if idx := strings.Index(AvailableMethod, "*"); idx != -1 {
+			if idx := strings.Index(AvailableMethod, "*"); idx != -1 && len(RequestedMethod) >= idx {
 				AvailableMethod, RequestedMethod = AvailableMethod[:idx], RequestedMethod[:idx]
 			}
 
