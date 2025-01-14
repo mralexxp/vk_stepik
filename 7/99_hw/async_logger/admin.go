@@ -4,38 +4,25 @@ import (
 	"context"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/tap"
+	"sync"
+	"time"
 )
 
-func NewAdmin() *Admin {
-	loggerChan := make(chan Event, 1)
-
-	return &Admin{
-		Logs: loggerChan,
-	}
+type Log struct {
+	LastEvent *Event
 }
 
 type Admin struct {
-	Logs           chan Event
-	RequestCounter map[string]int
+	M    sync.Mutex
+	Logs Log
 	UnimplementedAdminServer
 }
 
-func (a *Admin) Logging(nothing *Nothing, server Admin_LoggingServer) error {
-	for {
-		select {
-		case <-server.Context().Done():
-			return nil
-		case e, ok := <-a.Logs:
-			if !ok {
-				return nil
-			}
+func NewAdmin() *Admin {
+	return &Admin{}
+}
 
-			err := server.Send(&e)
-			if err != nil {
-				return err
-			}
-		}
-	}
+func (a *Admin) Logging(nothing *Nothing, server Admin_LoggingServer) error {
 
 	return nil
 }
@@ -46,18 +33,21 @@ func (a *Admin) Statistics(interval *StatInterval, server Admin_StatisticsServer
 }
 
 func (a *Admin) TapLogger(ctx context.Context, info *tap.Info) (context.Context, error) {
-	go func(ctx context.Context, info *tap.Info) {
-		md, _ := metadata.FromIncomingContext(ctx)
-		msg := Event{}
-		if val, ok := md["consumer"]; ok {
-			msg.Consumer = val[0]
-		}
+	md, _ := metadata.FromIncomingContext(ctx)
+	event := Event{}
+	if val, ok := md["consumer"]; ok {
+		event.Consumer = val[0]
+	}
 
-		msg.Host = md[":authority"][0]
-		msg.Method = info.FullMethodName
+	event.Host = md[":authority"][0]
+	event.Method = info.FullMethodName
+	event.Timestamp = time.Now().Unix()
 
-		a.Logs <- msg
-	}(ctx, info)
+	a.M.Lock()
+	a.Logs.LastEvent = &event
+	a.M.Unlock()
+
+	// TODO: Здесь же обработать для статистики
 
 	return ctx, nil
 }
