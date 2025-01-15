@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/tap"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/runtime/protoimpl"
+	"log"
 	"net"
 	"reflect"
 	"sync"
@@ -41,6 +42,9 @@ type EventLogger interface {
 }
 
 func StartMyMicroservice(ctx context.Context, listenAddr string, ACLData string) error {
+	const OP = "StartMyMicroservice"
+	log.Print(OP)
+
 	svc, err := NewServer(ACLData)
 	if err != nil {
 		return err
@@ -57,8 +61,11 @@ func StartMyMicroservice(ctx context.Context, listenAddr string, ACLData string)
 		grpc.InTapHandle(svc.Service.A.TapLogger),
 	)
 
+	admin := NewAdmin()
+	svc.Service.A = *admin
+
 	RegisterBizServer(svc.GRPCServer, NewBiz())
-	RegisterAdminServer(svc.GRPCServer, NewAdmin())
+	RegisterAdminServer(svc.GRPCServer, admin)
 
 	go svc.Start(ctx, svc.GRPCServer, listener)
 	return nil
@@ -71,6 +78,9 @@ type Server struct {
 }
 
 func NewServer(ACLData string) (*Server, error) {
+	const OP = "NewServer"
+	log.Print(OP)
+
 	ACL, err := NewACL(ACLData)
 	if err != nil {
 		return nil, err
@@ -82,6 +92,9 @@ func NewServer(ACLData string) (*Server, error) {
 }
 
 func (s *Server) Start(ctx context.Context, server *grpc.Server, listener net.Listener) {
+	const OP = "Server.Start"
+	log.Print(OP)
+
 	go server.Serve(listener)
 
 	// Ожидаем сигнал завершения через контекст
@@ -91,7 +104,9 @@ func (s *Server) Start(ctx context.Context, server *grpc.Server, listener net.Li
 }
 
 func (s *Server) Stop() {
-	close(s.Service.A.Logs)
+	const OP = "Server.Stop"
+	log.Print(OP)
+
 	s.GRPCServer.GracefulStop()
 }
 
@@ -101,6 +116,8 @@ func (s *Server) UnaryAccessInterceptor(
 	info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler,
 ) (interface{}, error) {
+	const OP = "Server.UnaryAccessInterceptor"
+	log.Print(OP)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	if val, ok := md["consumer"]; ok {
@@ -118,6 +135,9 @@ func (s *Server) StreamAccessInterceptor(
 	info *grpc.StreamServerInfo,
 	handler grpc.StreamHandler,
 ) error {
+	const OP = "Server.StreamAccessInterceptor"
+	log.Print(OP)
+
 	ctx := ss.Context()
 
 	md, _ := metadata.FromIncomingContext(ctx)

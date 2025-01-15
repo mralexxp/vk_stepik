@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"strings"
 )
 
@@ -10,6 +11,9 @@ type ACL struct {
 }
 
 func NewACL(ACLData string) (*ACL, error) {
+	const OP = "NewACL"
+	log.Print(OP)
+
 	acl := ACL{make(map[string][]string)}
 
 	err := json.Unmarshal([]byte(ACLData), &acl.Directory)
@@ -21,6 +25,9 @@ func NewACL(ACLData string) (*ACL, error) {
 }
 
 func (acl *ACL) CheckAccess(consumer, RequestedMethod string) bool {
+	const OP = "ACL.CheckAccess"
+	log.Print(OP)
+
 	if methods, ok := acl.Directory[consumer]; ok {
 		for _, AvailableMethod := range methods {
 			if idx := strings.Index(AvailableMethod, "*"); idx != -1 && len(RequestedMethod) >= idx {
