@@ -5,6 +5,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/tap"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -13,6 +14,7 @@ import (
 	"net"
 	"reflect"
 	"sync"
+	"time"
 )
 
 //type Service struct {
@@ -58,7 +60,7 @@ func StartMyMicroservice(ctx context.Context, listenAddr string, ACLData string)
 	svc.GRPCServer = grpc.NewServer(
 		grpc.UnaryInterceptor(svc.UnaryAccessInterceptor),
 		grpc.StreamInterceptor(svc.StreamAccessInterceptor),
-		grpc.InTapHandle(svc.Service.A.TapLogger),
+		//grpc.InTapHandle(svc.Service.A.TapLogger),
 	)
 
 	admin := NewAdmin()
@@ -121,6 +123,22 @@ func (s *Server) UnaryAccessInterceptor(
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	if val, ok := md["consumer"]; ok {
+
+		// Сбор и отправка Event в канал
+
+		event := Event{}
+		event.Consumer = val[0]
+
+		if p, ok := peer.FromContext(ctx); ok {
+			event.Host = p.Addr.String()
+		}
+
+		event.Method = info.FullMethod
+		event.Timestamp = time.Now().Unix()
+
+		s.Service.A.Broadcaster.SendEvent(&event)
+
+		// Авторизация
 		if s.ACL.CheckAccess(val[0], info.FullMethod) {
 			return handler(ctx, req)
 		}
@@ -138,12 +156,34 @@ func (s *Server) StreamAccessInterceptor(
 	const OP = "Server.StreamAccessInterceptor"
 	log.Print(OP)
 
-	ctx := ss.Context()
+	// Собираем и отправляем Event в канал
 
-	md, _ := metadata.FromIncomingContext(ctx)
+	md, _ := metadata.FromIncomingContext(ss.Context())
+
 	if val, ok := md["consumer"]; ok {
+		// Проверка на наличие подписчиков
+		if len(s.Service.A.Broadcaster.subscribers) != 0 {
+			event := Event{}
+			event.Consumer = val[0]
+
+			if p, ok := peer.FromContext(ss.Context()); ok {
+				event.Host = p.Addr.String()
+			}
+
+			event.Method = info.FullMethod
+			event.Timestamp = time.Now().Unix()
+
+			s.Service.A.Broadcaster.SendEvent(&event)
+		}
+
+		// Авторизация
 		if s.ACL.CheckAccess(val[0], info.FullMethod) {
-			return handler(srv, ss)
+			err := handler(srv, ss)
+			if err != nil {
+				return err
+			}
+
+			return nil
 		}
 	}
 
