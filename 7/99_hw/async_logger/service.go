@@ -110,8 +110,13 @@ func (s *Server) UnaryAccessInterceptor(
 		consumer = val[0]
 	}
 
-	p, _ := peer.FromContext(ctx)
-	s.Service.A.Broadcaster.SendEvent(consumer, info.FullMethod, p.Addr.String())
+	// Отправляем логи только при наличии слушателей
+	s.Service.A.Broadcaster.subscribersMu.RLock()
+	if len(s.Service.A.Broadcaster.subscribers) != 0 {
+		p, _ := peer.FromContext(ctx)
+		s.Service.A.Broadcaster.SendEvent(consumer, info.FullMethod, p.Addr.String())
+	}
+	s.Service.A.Broadcaster.subscribersMu.RUnlock()
 
 	if s.ACL.CheckAccess(consumer, info.FullMethod) {
 		n, err := handler(ctx, req)
@@ -136,8 +141,13 @@ func (s *Server) StreamAccessInterceptor(
 		consumer = val[0]
 	}
 
-	p, _ := peer.FromContext(ss.Context())
-	s.Service.A.Broadcaster.SendEvent(consumer, info.FullMethod, p.Addr.String())
+	// Отправляем логи только при наличии слушателей
+	s.Service.A.Broadcaster.subscribersMu.RLock()
+	if len(s.Service.A.Broadcaster.subscribers) != 0 {
+		p, _ := peer.FromContext(ss.Context())
+		s.Service.A.Broadcaster.SendEvent(consumer, info.FullMethod, p.Addr.String())
+	}
+	s.Service.A.Broadcaster.subscribersMu.RUnlock()
 
 	if s.ACL.CheckAccess(consumer, info.FullMethod) {
 		err := handler(srv, ss)
@@ -146,9 +156,6 @@ func (s *Server) StreamAccessInterceptor(
 		return status.Errorf(codes.Unauthenticated, "access denied for %s", info.FullMethod)
 	}
 
-	//s.Service.A.Broadcaster.subscribersMu.RLock()
-	//haveSubs := len(s.Service.A.Broadcaster.subscribers) != 0
-	//s.Service.A.Broadcaster.subscribersMu.RUnlock()
 }
 
 func (a *Admin) Logging(nothing *Nothing, server Admin_LoggingServer) error {
