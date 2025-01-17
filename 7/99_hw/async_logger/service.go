@@ -105,7 +105,7 @@ func (s *Server) UnaryAccessInterceptor(
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	if val, ok := md["consumer"]; ok {
-
+		// TODO: сбор информации вынести в отдельный метод Broadcaster, который будет вызывать Send
 		event := Event{}
 		event.Consumer = val[0]
 
@@ -119,8 +119,10 @@ func (s *Server) UnaryAccessInterceptor(
 		s.Service.A.Broadcaster.SendEvent(&event)
 
 		// Авторизация
+		// TODO: Неудачная авторизация сразу отправляет ошибку
 		if s.ACL.CheckAccess(val[0], info.FullMethod) {
-			return handler(ctx, req)
+			n, err := handler(ctx, req)
+			return n, err
 		}
 	}
 
@@ -136,6 +138,8 @@ func (s *Server) StreamAccessInterceptor(
 	const OP = "Server.StreamAccessInterceptor"
 
 	md, _ := metadata.FromIncomingContext(ss.Context())
+
+	// TODO: сбор информации вынести в отдельный метод Broadcaster, который будет вызывать Send
 
 	if val, ok := md["consumer"]; ok {
 		// Проверка на наличие подписчиков
@@ -159,17 +163,16 @@ func (s *Server) StreamAccessInterceptor(
 		}
 
 		// Авторизация
+		// TODO: Неудачная авторизация сразу отправляет ошибку
 		if s.ACL.CheckAccess(val[0], info.FullMethod) {
 			err := handler(srv, ss)
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return err
+		} else {
+			return status.Errorf(codes.Unauthenticated, "access denied for %s", info.FullMethod)
 		}
 	}
 
-	return status.Errorf(codes.Unauthenticated, "access denied for %s", info.FullMethod)
+	return status.Errorf(codes.Internal, "%s: other error", OP)
 }
 
 func (a *Admin) Logging(nothing *Nothing, server Admin_LoggingServer) error {
