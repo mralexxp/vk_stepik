@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -9,74 +10,77 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/runtime/protoimpl"
+	"log"
 	"net"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 )
 
-type Service struct {
-	M Biz
-	A Admin
-}
-
+// Интерфейсы
 type AccessChecker interface {
 	CheckAccess(string, string) bool
 }
 
-func StartMyMicroservice(ctx context.Context, listenAddr string, ACLData string) error {
-	const OP = "StartMyMicroservice"
-
-	svc, err := NewServer(ACLData)
-	if err != nil {
-		return err
-	}
-
-	listener, err := net.Listen("tcp", listenAddr)
-	if err != nil {
-		return err
-	}
-
-	svc.GRPCServer = grpc.NewServer(
-		grpc.UnaryInterceptor(svc.UnaryAccessInterceptor),
-		grpc.StreamInterceptor(svc.StreamAccessInterceptor),
-	)
-
-	admin := NewAdmin(ctx)
-	svc.Service.A = *admin
-
-	RegisterBizServer(svc.GRPCServer, NewBiz())
-	RegisterAdminServer(svc.GRPCServer, admin)
-
-	go svc.Start(ctx, svc.GRPCServer, listener)
-	return nil
-}
-
+// Структуры
 type Server struct {
 	ACL        AccessChecker
 	GRPCServer *grpc.Server
 	Service    Service
 }
 
-func NewServer(ACLData string) (*Server, error) {
-	const OP = "NewServer"
-
-	ACL, err := NewACL(ACLData)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Server{
-		ACL: ACL,
-	}, nil
+type Service struct {
+	M Biz
+	A Admin
 }
 
+type ACL struct {
+	Directory map[string][]string
+}
+
+type Admin struct {
+	Broadcaster *Broadcast
+	EventChan   chan *Event
+
+	UnimplementedAdminServer
+}
+
+type Biz struct {
+	UnimplementedBizServer
+}
+
+type Broadcast struct {
+	evnt          chan *Event
+	subscribers   map[chan *Event]struct{}
+	subscribersMu sync.RWMutex
+}
+
+// Реализация iAccessChecker
+func (acl *ACL) CheckAccess(consumer, RequestedMethod string) bool {
+	const OP = "ACL.CheckAccess"
+
+	if methods, ok := acl.Directory[consumer]; ok {
+		for _, AvailableMethod := range methods {
+			if idx := strings.Index(AvailableMethod, "*"); idx != -1 && len(RequestedMethod) >= idx {
+				AvailableMethod, RequestedMethod = AvailableMethod[:idx], RequestedMethod[:idx]
+			}
+
+			if RequestedMethod == AvailableMethod {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// Методы
 func (s *Server) Start(ctx context.Context, server *grpc.Server, listener net.Listener) {
 	const OP = "Server.Start"
 
 	go s.GRPCServer.Serve(listener)
 
-	// Ожидаем сигнал завершения через контекст
 	<-ctx.Done()
 
 	s.Stop(ctx)
@@ -88,7 +92,6 @@ func (s *Server) Stop(ctx context.Context) {
 	ctx.Done()
 
 	s.GRPCServer.GracefulStop()
-
 	s.Service.A.Broadcaster.Stop()
 }
 
@@ -167,6 +170,220 @@ func (s *Server) StreamAccessInterceptor(
 	}
 
 	return status.Errorf(codes.Unauthenticated, "access denied for %s", info.FullMethod)
+}
+
+func (a *Admin) Logging(nothing *Nothing, server Admin_LoggingServer) error {
+	const OP = "Admin.Logging"
+
+	eventChan := a.Broadcaster.Subscribe()
+	defer a.Broadcaster.Unsubscribe(eventChan)
+
+	for {
+		select {
+		case event := <-eventChan:
+			if err := server.Send(event); err != nil {
+				return err
+			}
+		case <-server.Context().Done():
+			return server.Context().Err()
+		}
+	}
+}
+
+func (a *Admin) Statistics(interval *StatInterval, server Admin_StatisticsServer) error {
+	const OP = "Admin.Statistics"
+
+	eventChan := a.Broadcaster.Subscribe()
+	defer a.Broadcaster.Unsubscribe(eventChan)
+
+	stat := Stat{
+		ByMethod:   make(map[string]uint64),
+		ByConsumer: make(map[string]uint64),
+	}
+
+	ticker := time.NewTicker(time.Duration(interval.IntervalSeconds) * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case event := <-eventChan:
+			stat.ByMethod[event.Method]++
+			stat.ByConsumer[event.Consumer]++
+		case <-ticker.C:
+			err := server.Send(&stat)
+			if err != nil {
+				return err
+			}
+			stat.ByMethod = make(map[string]uint64)
+			stat.ByConsumer = make(map[string]uint64)
+		case <-server.Context().Done():
+			return server.Context().Err()
+		}
+	}
+
+}
+
+func (b *Biz) Check(context.Context, *Nothing) (*Nothing, error) {
+	const OP = "Biz.Check"
+
+	return &Nothing{}, nil
+}
+
+func (b *Biz) Add(context.Context, *Nothing) (*Nothing, error) {
+	const OP = "Biz.Add"
+
+	return &Nothing{}, nil
+}
+
+func (b *Biz) Test(context.Context, *Nothing) (*Nothing, error) {
+	const OP = "Biz.Test"
+
+	return &Nothing{}, nil
+}
+
+func (b *Broadcast) SendEvent(event *Event) {
+	const OP = "Broadcast.SendEvent"
+
+	b.evnt <- event
+}
+
+func (b *Broadcast) broadcaster(ctx context.Context) {
+	const OP = "Broadcast.Broadcaster"
+
+	for event := range b.evnt {
+		b.subscribersMu.RLock()
+
+		for subChan := range b.subscribers {
+			select {
+			case subChan <- event:
+				//log.Print(event.String())
+			case <-ctx.Done():
+				return
+			default:
+				log.Print("пропущена запись: ", event, "для канала ", subChan)
+			}
+		}
+
+		b.subscribersMu.RUnlock()
+	}
+}
+
+func (b *Broadcast) Subscribe() chan *Event {
+	const OP = "Broadcast.Subscribe"
+
+	ch := make(chan *Event)
+
+	b.subscribersMu.Lock()
+	b.subscribers[ch] = struct{}{}
+	b.subscribersMu.Unlock()
+
+	return ch
+}
+
+func (b *Broadcast) Unsubscribe(ch chan *Event) {
+	const OP = "Broadcast.Unsubscribe"
+
+	b.subscribersMu.Lock()
+	delete(b.subscribers, ch)
+	close(ch)
+	b.subscribersMu.Unlock()
+}
+
+func (b *Broadcast) Stop() {
+	const OP = "Broadcast.Stop"
+
+	b.subscribersMu.Lock()
+	for ch := range b.subscribers {
+		close(ch)
+	}
+
+	b.subscribersMu.Unlock()
+
+	close(b.evnt)
+}
+
+// Вспомогательные функции
+func StartMyMicroservice(ctx context.Context, listenAddr string, ACLData string) error {
+	const OP = "StartMyMicroservice"
+
+	svc, err := NewServer(ACLData)
+	if err != nil {
+		return err
+	}
+
+	listener, err := net.Listen("tcp", listenAddr)
+	if err != nil {
+		return err
+	}
+
+	svc.GRPCServer = grpc.NewServer(
+		grpc.UnaryInterceptor(svc.UnaryAccessInterceptor),
+		grpc.StreamInterceptor(svc.StreamAccessInterceptor),
+	)
+
+	admin := NewAdmin(ctx)
+	svc.Service.A = *admin
+
+	RegisterBizServer(svc.GRPCServer, NewBiz())
+	RegisterAdminServer(svc.GRPCServer, admin)
+
+	go svc.Start(ctx, svc.GRPCServer, listener)
+	return nil
+}
+
+func NewServer(ACLData string) (*Server, error) {
+	const OP = "NewServer"
+
+	ACL, err := NewACL(ACLData)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Server{
+		ACL: ACL,
+	}, nil
+}
+
+func NewACL(ACLData string) (*ACL, error) {
+	const OP = "NewACL"
+
+	acl := ACL{make(map[string][]string)}
+
+	err := json.Unmarshal([]byte(ACLData), &acl.Directory)
+	if err != nil {
+		return nil, err
+	}
+
+	return &acl, err
+}
+
+func NewAdmin(ctx context.Context) *Admin {
+	const OP = "NewAdmin"
+
+	eventChan := make(chan *Event)
+
+	admin := &Admin{EventChan: eventChan}
+
+	admin.Broadcaster = NewBroadcast(ctx, eventChan)
+
+	return admin
+}
+
+func NewBiz() *Biz {
+	const OP = "NewBiz"
+
+	return &Biz{}
+}
+
+func NewBroadcast(ctx context.Context, eventChan chan *Event) *Broadcast {
+	b := &Broadcast{
+		evnt:        eventChan,
+		subscribers: make(map[chan *Event]struct{}),
+	}
+
+	go b.broadcaster(ctx)
+
+	return b
 }
 
 // ================== НИЖЕ идут PB-файлы ================================
