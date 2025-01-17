@@ -1,6 +1,7 @@
 package main
 
 import (
+	"golang.org/x/net/context"
 	"log"
 	"sync"
 )
@@ -11,27 +12,25 @@ type Broadcast struct {
 	subscribersMu sync.RWMutex
 }
 
-func NewBroadcast(eventChan chan *Event) *Broadcast {
+func NewBroadcast(ctx context.Context, eventChan chan *Event) *Broadcast {
 	b := &Broadcast{
 		evnt:        eventChan,
 		subscribers: make(map[chan *Event]struct{}),
 	}
 
-	go b.broadcaster()
+	go b.broadcaster(ctx)
 
 	return b
 }
 
 func (b *Broadcast) SendEvent(event *Event) {
 	const OP = "Broadcast.SendEvent"
-	log.Print(OP)
 
 	b.evnt <- event
 }
 
-func (b *Broadcast) broadcaster() {
+func (b *Broadcast) broadcaster(ctx context.Context) {
 	const OP = "Broadcast.Broadcaster"
-	log.Print(OP)
 
 	for event := range b.evnt {
 		b.subscribersMu.RLock()
@@ -39,7 +38,9 @@ func (b *Broadcast) broadcaster() {
 		for subChan := range b.subscribers {
 			select {
 			case subChan <- event:
-				log.Print(event.String())
+				//log.Print(event.String())
+			case <-ctx.Done():
+				return
 			default:
 				log.Print("пропущена запись: ", event, "для канала ", subChan)
 			}
@@ -51,7 +52,6 @@ func (b *Broadcast) broadcaster() {
 
 func (b *Broadcast) Subscribe() chan *Event {
 	const OP = "Broadcast.Subscribe"
-	log.Print(OP)
 
 	ch := make(chan *Event)
 
@@ -64,10 +64,22 @@ func (b *Broadcast) Subscribe() chan *Event {
 
 func (b *Broadcast) Unsubscribe(ch chan *Event) {
 	const OP = "Broadcast.Unsubscribe"
-	log.Print(OP)
 
 	b.subscribersMu.Lock()
 	delete(b.subscribers, ch)
 	close(ch)
 	b.subscribersMu.Unlock()
+}
+
+func (b *Broadcast) Stop() {
+	const OP = "Broadcast.Stop"
+
+	b.subscribersMu.Lock()
+	for ch := range b.subscribers {
+		close(ch)
+	}
+
+	b.subscribersMu.Unlock()
+
+	close(b.evnt)
 }

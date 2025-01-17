@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	"context"
 	"time"
 )
 
@@ -12,22 +12,20 @@ type Admin struct {
 	UnimplementedAdminServer
 }
 
-func NewAdmin() *Admin {
+func NewAdmin(ctx context.Context) *Admin {
 	const OP = "NewAdmin"
-	log.Print(OP)
 
 	eventChan := make(chan *Event)
 
 	admin := &Admin{EventChan: eventChan}
 
-	admin.Broadcaster = NewBroadcast(eventChan)
+	admin.Broadcaster = NewBroadcast(ctx, eventChan)
 
 	return admin
 }
 
 func (a *Admin) Logging(nothing *Nothing, server Admin_LoggingServer) error {
 	const OP = "Admin.Logging"
-	log.Print(OP)
 
 	eventChan := a.Broadcaster.Subscribe()
 	defer a.Broadcaster.Unsubscribe(eventChan)
@@ -35,13 +33,10 @@ func (a *Admin) Logging(nothing *Nothing, server Admin_LoggingServer) error {
 	for {
 		select {
 		case event := <-eventChan:
-			log.Println(OP+": "+"прочитано: ", event)
 			if err := server.Send(event); err != nil {
-				log.Println(OP + ": ошибка отправки: " + err.Error())
 				return err
 			}
 		case <-server.Context().Done():
-			log.Println(OP + ": close connection")
 			return server.Context().Err()
 		}
 
@@ -50,7 +45,6 @@ func (a *Admin) Logging(nothing *Nothing, server Admin_LoggingServer) error {
 
 func (a *Admin) Statistics(interval *StatInterval, server Admin_StatisticsServer) error {
 	const OP = "Admin.Statistics"
-	log.Print(OP)
 
 	eventChan := a.Broadcaster.Subscribe()
 	defer a.Broadcaster.Unsubscribe(eventChan)
@@ -76,7 +70,6 @@ func (a *Admin) Statistics(interval *StatInterval, server Admin_StatisticsServer
 			stat.ByMethod = make(map[string]uint64)
 			stat.ByConsumer = make(map[string]uint64)
 		case <-server.Context().Done():
-			log.Println(OP + ": close connection")
 			return server.Context().Err()
 		}
 	}

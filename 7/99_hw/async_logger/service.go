@@ -9,7 +9,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/runtime/protoimpl"
-	"log"
 	"net"
 	"reflect"
 	"sync"
@@ -27,7 +26,6 @@ type AccessChecker interface {
 
 func StartMyMicroservice(ctx context.Context, listenAddr string, ACLData string) error {
 	const OP = "StartMyMicroservice"
-	log.Print(OP)
 
 	svc, err := NewServer(ACLData)
 	if err != nil {
@@ -42,10 +40,9 @@ func StartMyMicroservice(ctx context.Context, listenAddr string, ACLData string)
 	svc.GRPCServer = grpc.NewServer(
 		grpc.UnaryInterceptor(svc.UnaryAccessInterceptor),
 		grpc.StreamInterceptor(svc.StreamAccessInterceptor),
-		//grpc.InTapHandle(svc.Service.A.TapLogger),
 	)
 
-	admin := NewAdmin()
+	admin := NewAdmin(ctx)
 	svc.Service.A = *admin
 
 	RegisterBizServer(svc.GRPCServer, NewBiz())
@@ -63,7 +60,6 @@ type Server struct {
 
 func NewServer(ACLData string) (*Server, error) {
 	const OP = "NewServer"
-	log.Print(OP)
 
 	ACL, err := NewACL(ACLData)
 	if err != nil {
@@ -77,21 +73,23 @@ func NewServer(ACLData string) (*Server, error) {
 
 func (s *Server) Start(ctx context.Context, server *grpc.Server, listener net.Listener) {
 	const OP = "Server.Start"
-	log.Print(OP)
 
-	go server.Serve(listener)
+	go s.GRPCServer.Serve(listener)
 
 	// Ожидаем сигнал завершения через контекст
 	<-ctx.Done()
 
-	s.Stop()
+	s.Stop(ctx)
 }
 
-func (s *Server) Stop() {
+func (s *Server) Stop(ctx context.Context) {
 	const OP = "Server.Stop"
-	log.Print(OP)
+
+	ctx.Done()
 
 	s.GRPCServer.GracefulStop()
+
+	s.Service.A.Broadcaster.Stop()
 }
 
 func (s *Server) UnaryAccessInterceptor(
@@ -101,12 +99,9 @@ func (s *Server) UnaryAccessInterceptor(
 	handler grpc.UnaryHandler,
 ) (interface{}, error) {
 	const OP = "Server.UnaryAccessInterceptor"
-	log.Print(OP)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	if val, ok := md["consumer"]; ok {
-
-		// Сбор и отправка Event в канал
 
 		event := Event{}
 		event.Consumer = val[0]
@@ -136,9 +131,6 @@ func (s *Server) StreamAccessInterceptor(
 	handler grpc.StreamHandler,
 ) error {
 	const OP = "Server.StreamAccessInterceptor"
-	log.Print(OP)
-
-	// Собираем и отправляем Event в канал
 
 	md, _ := metadata.FromIncomingContext(ss.Context())
 
