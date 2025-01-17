@@ -39,9 +39,9 @@ func (b *Broadcast) broadcaster() {
 		for subChan := range b.subscribers {
 			select {
 			case subChan <- event:
-				log.Println(event)
+				log.Print(event.String())
 			default:
-				log.Println("пропущена запись: ", event, "для канала ", subChan)
+				log.Print("пропущена запись: ", event, "для канала ", subChan)
 			}
 		}
 

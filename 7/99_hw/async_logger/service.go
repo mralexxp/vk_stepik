@@ -7,7 +7,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
-	"google.golang.org/grpc/tap"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/runtime/protoimpl"
 	"log"
@@ -17,11 +16,6 @@ import (
 	"time"
 )
 
-//type Service struct {
-//	Manager BizManager
-//	Admin   EventLogger
-//}
-
 type Service struct {
 	M Biz
 	A Admin
@@ -29,18 +23,6 @@ type Service struct {
 
 type AccessChecker interface {
 	CheckAccess(string, string) bool
-}
-
-type BizManager interface {
-	Check(context.Context, *Nothing) (*Nothing, error)
-	Add(context.Context, *Nothing) (*Nothing, error)
-	Test(context.Context, *Nothing) (*Nothing, error)
-}
-
-type EventLogger interface {
-	Statistics(*StatInterval, Admin_StatisticsServer) error
-	Logging(*Nothing, Admin_LoggingServer) error
-	TapLogger(ctx context.Context, info *tap.Info) (context.Context, error)
 }
 
 func StartMyMicroservice(ctx context.Context, listenAddr string, ACLData string) error {
@@ -162,7 +144,12 @@ func (s *Server) StreamAccessInterceptor(
 
 	if val, ok := md["consumer"]; ok {
 		// Проверка на наличие подписчиков
-		if len(s.Service.A.Broadcaster.subscribers) != 0 {
+		// чтобы не ковырять контекст в каждом запросе при отсутствии подписчиков
+		s.Service.A.Broadcaster.subscribersMu.RLock()
+		haveSubs := len(s.Service.A.Broadcaster.subscribers) != 0
+		s.Service.A.Broadcaster.subscribersMu.RUnlock()
+
+		if haveSubs {
 			event := Event{}
 			event.Consumer = val[0]
 

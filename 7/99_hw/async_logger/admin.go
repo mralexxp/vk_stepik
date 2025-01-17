@@ -2,16 +2,13 @@ package main
 
 import (
 	"log"
+	"time"
 )
-
-//type Notifier interface {
-//	AddSubscriber(sub Admin_LoggingServer)
-//	NewNotify(event *Event)
-//}
 
 type Admin struct {
 	Broadcaster *Broadcast
 	EventChan   chan *Event
+
 	UnimplementedAdminServer
 }
 
@@ -20,9 +17,9 @@ func NewAdmin() *Admin {
 	log.Print(OP)
 
 	eventChan := make(chan *Event)
-	admin := &Admin{
-		EventChan: eventChan,
-	}
+
+	admin := &Admin{EventChan: eventChan}
+
 	admin.Broadcaster = NewBroadcast(eventChan)
 
 	return admin
@@ -55,5 +52,33 @@ func (a *Admin) Statistics(interval *StatInterval, server Admin_StatisticsServer
 	const OP = "Admin.Statistics"
 	log.Print(OP)
 
-	return nil
+	eventChan := a.Broadcaster.Subscribe()
+	defer a.Broadcaster.Unsubscribe(eventChan)
+
+	stat := Stat{
+		ByMethod:   make(map[string]uint64),
+		ByConsumer: make(map[string]uint64),
+	}
+
+	ticker := time.NewTicker(time.Duration(interval.IntervalSeconds) * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case event := <-eventChan:
+			stat.ByMethod[event.Method]++
+			stat.ByConsumer[event.Consumer]++
+		case <-ticker.C:
+			err := server.Send(&stat)
+			if err != nil {
+				return err
+			}
+			stat.ByMethod = make(map[string]uint64)
+			stat.ByConsumer = make(map[string]uint64)
+		case <-server.Context().Done():
+			log.Println(OP + ": close connection")
+			return server.Context().Err()
+		}
+	}
+
 }
