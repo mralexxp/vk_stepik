@@ -104,29 +104,21 @@ func (s *Server) UnaryAccessInterceptor(
 	const OP = "Server.UnaryAccessInterceptor"
 
 	md, _ := metadata.FromIncomingContext(ctx)
+
+	var consumer string
 	if val, ok := md["consumer"]; ok {
-		// TODO: сбор информации вынести в отдельный метод Broadcaster, который будет вызывать Send
-		event := Event{}
-		event.Consumer = val[0]
-
-		if p, ok := peer.FromContext(ctx); ok {
-			event.Host = p.Addr.String()
-		}
-
-		event.Method = info.FullMethod
-		event.Timestamp = time.Now().Unix()
-
-		s.Service.A.Broadcaster.SendEvent(&event)
-
-		// Авторизация
-		// TODO: Неудачная авторизация сразу отправляет ошибку
-		if s.ACL.CheckAccess(val[0], info.FullMethod) {
-			n, err := handler(ctx, req)
-			return n, err
-		}
+		consumer = val[0]
 	}
 
-	return nil, status.Errorf(codes.Unauthenticated, "access denied for %s", info.FullMethod)
+	p, _ := peer.FromContext(ctx)
+	s.Service.A.Broadcaster.SendEvent(consumer, info.FullMethod, p.Addr.String())
+
+	if s.ACL.CheckAccess(consumer, info.FullMethod) {
+		n, err := handler(ctx, req)
+		return n, err
+	} else {
+		return nil, status.Errorf(codes.Unauthenticated, "access denied for %s", info.FullMethod)
+	}
 }
 
 func (s *Server) StreamAccessInterceptor(
@@ -139,40 +131,24 @@ func (s *Server) StreamAccessInterceptor(
 
 	md, _ := metadata.FromIncomingContext(ss.Context())
 
-	// TODO: сбор информации вынести в отдельный метод Broadcaster, который будет вызывать Send
-
+	var consumer string
 	if val, ok := md["consumer"]; ok {
-		// Проверка на наличие подписчиков
-		// чтобы не ковырять контекст в каждом запросе при отсутствии подписчиков
-		s.Service.A.Broadcaster.subscribersMu.RLock()
-		haveSubs := len(s.Service.A.Broadcaster.subscribers) != 0
-		s.Service.A.Broadcaster.subscribersMu.RUnlock()
-
-		if haveSubs {
-			event := Event{}
-			event.Consumer = val[0]
-
-			if p, ok := peer.FromContext(ss.Context()); ok {
-				event.Host = p.Addr.String()
-			}
-
-			event.Method = info.FullMethod
-			event.Timestamp = time.Now().Unix()
-
-			s.Service.A.Broadcaster.SendEvent(&event)
-		}
-
-		// Авторизация
-		// TODO: Неудачная авторизация сразу отправляет ошибку
-		if s.ACL.CheckAccess(val[0], info.FullMethod) {
-			err := handler(srv, ss)
-			return err
-		} else {
-			return status.Errorf(codes.Unauthenticated, "access denied for %s", info.FullMethod)
-		}
+		consumer = val[0]
 	}
 
-	return status.Errorf(codes.Internal, "%s: other error", OP)
+	p, _ := peer.FromContext(ss.Context())
+	s.Service.A.Broadcaster.SendEvent(consumer, info.FullMethod, p.Addr.String())
+
+	if s.ACL.CheckAccess(consumer, info.FullMethod) {
+		err := handler(srv, ss)
+		return err
+	} else {
+		return status.Errorf(codes.Unauthenticated, "access denied for %s", info.FullMethod)
+	}
+
+	//s.Service.A.Broadcaster.subscribersMu.RLock()
+	//haveSubs := len(s.Service.A.Broadcaster.subscribers) != 0
+	//s.Service.A.Broadcaster.subscribersMu.RUnlock()
 }
 
 func (a *Admin) Logging(nothing *Nothing, server Admin_LoggingServer) error {
@@ -244,8 +220,15 @@ func (b *Biz) Test(context.Context, *Nothing) (*Nothing, error) {
 	return &Nothing{}, nil
 }
 
-func (b *Broadcast) SendEvent(event *Event) {
+func (b *Broadcast) SendEvent(consumer, method, peer string) {
 	const OP = "Broadcast.SendEvent"
+
+	event := &Event{
+		Timestamp: time.Now().Unix(),
+		Consumer:  consumer,
+		Method:    method,
+		Host:      peer,
+	}
 
 	b.evnt <- event
 }
