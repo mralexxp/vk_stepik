@@ -51,7 +51,6 @@ type Biz struct {
 }
 
 type Broadcast struct {
-	evnt          chan *Event
 	subscribers   map[chan *Event]struct{}
 	haveSubs      bool
 	subscribersMu sync.RWMutex
@@ -77,7 +76,7 @@ func (acl *ACL) CheckAccess(consumer, RequestedMethod string) bool {
 }
 
 // Методы
-func (s *Server) Start(ctx context.Context, server *grpc.Server, listener net.Listener) {
+func (s *Server) Start(ctx context.Context, listener net.Listener) {
 	const OP = "Server.Start"
 
 	go s.GRPCServer.Serve(listener)
@@ -223,9 +222,10 @@ func (b *Biz) Test(context.Context, *Nothing) (*Nothing, error) {
 func (b *Broadcast) SendEvent(consumer, method, peer string) {
 	const OP = "Broadcast.SendEvent"
 
-	// Если нет подписчиков, то игнорируем
 	b.subscribersMu.RLock()
 	defer b.subscribersMu.RUnlock()
+
+	// Если нет подписчиков, то игнорируем
 	if !b.haveSubs {
 		return
 	}
@@ -246,29 +246,6 @@ func (b *Broadcast) SendEvent(consumer, method, peer string) {
 	}
 }
 
-func (b *Broadcast) broadcaster(ctx context.Context) {
-	const OP = "Broadcast.Broadcaster"
-
-	for event := range b.evnt {
-
-		b.subscribersMu.RLock()
-
-		for subChan := range b.subscribers {
-			select {
-			case subChan <- event:
-				//log.Print(event.String())
-			case <-ctx.Done():
-				b.subscribersMu.RUnlock()
-				return
-			default:
-				log.Print("пропущена запись: ", event, "для канала ", subChan)
-			}
-		}
-
-		b.subscribersMu.RUnlock()
-	}
-}
-
 func (b *Broadcast) Subscribe() chan *Event {
 	const OP = "Broadcast.Subscribe"
 
@@ -276,9 +253,7 @@ func (b *Broadcast) Subscribe() chan *Event {
 
 	b.subscribersMu.Lock()
 	b.subscribers[ch] = struct{}{}
-	b.subscribersMu.Unlock()
 
-	b.subscribersMu.Lock()
 	defer b.subscribersMu.Unlock()
 
 	if !b.haveSubs {
@@ -293,8 +268,11 @@ func (b *Broadcast) Unsubscribe(ch chan *Event) {
 
 	b.subscribersMu.Lock()
 	defer b.subscribersMu.Unlock()
+
 	delete(b.subscribers, ch)
+
 	close(ch)
+
 	if len(b.subscribers) == 0 {
 		b.haveSubs = false
 	}
@@ -311,8 +289,6 @@ func (b *Broadcast) Stop() {
 	for ch := range b.subscribers {
 		close(ch)
 	}
-
-	close(b.evnt)
 }
 
 // Вспомогательные функции
@@ -334,7 +310,7 @@ func StartMyMicroservice(ctx context.Context, listenAddr string, ACLData string)
 		grpc.StreamInterceptor(svc.StreamAccessInterceptor),
 	)
 
-	admin := NewAdmin(ctx)
+	admin := NewAdmin()
 	svc.Service.A = *admin
 
 	RegisterBizServer(svc.GRPCServer, NewBiz())
@@ -370,14 +346,12 @@ func NewACL(ACLData string) (*ACL, error) {
 	return &acl, err
 }
 
-func NewAdmin(ctx context.Context) *Admin {
+func NewAdmin() *Admin {
 	const OP = "NewAdmin"
 
-	eventChan := make(chan *Event)
+	admin := &Admin{}
 
-	admin := &Admin{EventChan: eventChan}
-
-	admin.Broadcaster = NewBroadcast(ctx, eventChan)
+	admin.Broadcaster = NewBroadcast()
 
 	return admin
 }
@@ -388,15 +362,11 @@ func NewBiz() *Biz {
 	return &Biz{}
 }
 
-func NewBroadcast(ctx context.Context, eventChan chan *Event) *Broadcast {
+func NewBroadcast() *Broadcast {
 	b := &Broadcast{
-		evnt:        eventChan,
 		subscribers: make(map[chan *Event]struct{}),
 		haveSubs:    false,
 	}
-
-	go b.broadcaster(ctx)
-
 	return b
 }
 
