@@ -261,6 +261,7 @@ func (b *Broadcast) broadcaster(ctx context.Context) {
 			case subChan <- event:
 				//log.Print(event.String())
 			case <-ctx.Done():
+				b.subscribersMu.RUnlock()
 				return
 			default:
 				log.Print("пропущена запись: ", event, "для канала ", subChan)
