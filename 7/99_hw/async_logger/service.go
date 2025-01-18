@@ -53,6 +53,7 @@ type Biz struct {
 type Broadcast struct {
 	evnt          chan *Event
 	subscribers   map[chan *Event]struct{}
+	haveSubs      bool
 	subscribersMu sync.RWMutex
 }
 
@@ -110,13 +111,9 @@ func (s *Server) UnaryAccessInterceptor(
 		consumer = val[0]
 	}
 
-	// Отправляем логи только при наличии слушателей
-	s.Service.A.Broadcaster.subscribersMu.RLock()
-	if len(s.Service.A.Broadcaster.subscribers) != 0 {
-		p, _ := peer.FromContext(ctx)
-		s.Service.A.Broadcaster.SendEvent(consumer, info.FullMethod, p.Addr.String())
-	}
-	s.Service.A.Broadcaster.subscribersMu.RUnlock()
+	p, _ := peer.FromContext(ctx)
+
+	s.Service.A.Broadcaster.SendEvent(consumer, info.FullMethod, p.Addr.String())
 
 	if s.ACL.CheckAccess(consumer, info.FullMethod) {
 		n, err := handler(ctx, req)
@@ -141,13 +138,9 @@ func (s *Server) StreamAccessInterceptor(
 		consumer = val[0]
 	}
 
-	// Отправляем логи только при наличии слушателей
-	s.Service.A.Broadcaster.subscribersMu.RLock()
-	if len(s.Service.A.Broadcaster.subscribers) != 0 {
-		p, _ := peer.FromContext(ss.Context())
-		s.Service.A.Broadcaster.SendEvent(consumer, info.FullMethod, p.Addr.String())
-	}
-	s.Service.A.Broadcaster.subscribersMu.RUnlock()
+	p, _ := peer.FromContext(ss.Context())
+
+	s.Service.A.Broadcaster.SendEvent(consumer, info.FullMethod, p.Addr.String())
 
 	if s.ACL.CheckAccess(consumer, info.FullMethod) {
 		err := handler(srv, ss)
@@ -230,6 +223,13 @@ func (b *Biz) Test(context.Context, *Nothing) (*Nothing, error) {
 func (b *Broadcast) SendEvent(consumer, method, peer string) {
 	const OP = "Broadcast.SendEvent"
 
+	// Если нет подписчиков, то игнорируем
+	b.subscribersMu.Lock()
+	defer b.subscribersMu.Unlock()
+	if !b.haveSubs {
+		return
+	}
+
 	event := &Event{
 		Timestamp: time.Now().Unix(),
 		Consumer:  consumer,
@@ -237,13 +237,23 @@ func (b *Broadcast) SendEvent(consumer, method, peer string) {
 		Host:      peer,
 	}
 
-	b.evnt <- event
+	timer := time.NewTimer(100 * time.Millisecond)
+
+	select {
+	case b.evnt <- event:
+		timer.Stop()
+	case <-timer.C:
+		timer.Stop()
+		log.Println(OP+": не удалось отправить в канал: ", event.String())
+	}
+
 }
 
 func (b *Broadcast) broadcaster(ctx context.Context) {
 	const OP = "Broadcast.Broadcaster"
 
 	for event := range b.evnt {
+
 		b.subscribersMu.RLock()
 
 		for subChan := range b.subscribers {
@@ -270,6 +280,13 @@ func (b *Broadcast) Subscribe() chan *Event {
 	b.subscribers[ch] = struct{}{}
 	b.subscribersMu.Unlock()
 
+	b.subscribersMu.Lock()
+	defer b.subscribersMu.Unlock()
+
+	if !b.haveSubs {
+		b.haveSubs = true
+	}
+
 	return ch
 }
 
@@ -277,20 +294,25 @@ func (b *Broadcast) Unsubscribe(ch chan *Event) {
 	const OP = "Broadcast.Unsubscribe"
 
 	b.subscribersMu.Lock()
+	defer b.subscribersMu.Unlock()
 	delete(b.subscribers, ch)
 	close(ch)
-	b.subscribersMu.Unlock()
+	if len(b.subscribers) == 0 {
+		b.haveSubs = false
+	}
 }
 
 func (b *Broadcast) Stop() {
 	const OP = "Broadcast.Stop"
 
 	b.subscribersMu.Lock()
+	defer b.subscribersMu.Unlock()
+
+	b.haveSubs = false
+
 	for ch := range b.subscribers {
 		close(ch)
 	}
-
-	b.subscribersMu.Unlock()
 
 	close(b.evnt)
 }
@@ -372,6 +394,7 @@ func NewBroadcast(ctx context.Context, eventChan chan *Event) *Broadcast {
 	b := &Broadcast{
 		evnt:        eventChan,
 		subscribers: make(map[chan *Event]struct{}),
+		haveSubs:    false,
 	}
 
 	go b.broadcaster(ctx)
