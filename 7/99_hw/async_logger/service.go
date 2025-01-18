@@ -224,8 +224,8 @@ func (b *Broadcast) SendEvent(consumer, method, peer string) {
 	const OP = "Broadcast.SendEvent"
 
 	// Если нет подписчиков, то игнорируем
-	b.subscribersMu.Lock()
-	defer b.subscribersMu.Unlock()
+	b.subscribersMu.RLock()
+	defer b.subscribersMu.RUnlock()
 	if !b.haveSubs {
 		return
 	}
@@ -237,16 +237,13 @@ func (b *Broadcast) SendEvent(consumer, method, peer string) {
 		Host:      peer,
 	}
 
-	timer := time.NewTimer(100 * time.Millisecond)
-
-	select {
-	case b.evnt <- event:
-		timer.Stop()
-	case <-timer.C:
-		timer.Stop()
-		log.Println(OP+": не удалось отправить в канал: ", event.String())
+	for subChan := range b.subscribers {
+		select {
+		case subChan <- event:
+		default:
+			log.Printf("%s: пропущено событие для подписчика: %v", OP, subChan)
+		}
 	}
-
 }
 
 func (b *Broadcast) broadcaster(ctx context.Context) {
