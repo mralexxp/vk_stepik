@@ -18,12 +18,10 @@ import (
 	"time"
 )
 
-// Интерфейсы
 type AccessChecker interface {
 	CheckAccess(string, string) bool
 }
 
-// Структуры
 type Server struct {
 	ACL        AccessChecker
 	GRPCServer *grpc.Server
@@ -56,10 +54,7 @@ type Broadcast struct {
 	subscribersMu sync.RWMutex
 }
 
-// Реализация iAccessChecker
 func (acl *ACL) CheckAccess(consumer, RequestedMethod string) bool {
-	const OP = "ACL.CheckAccess"
-
 	if methods, ok := acl.Directory[consumer]; ok {
 		for _, AvailableMethod := range methods {
 			if idx := strings.Index(AvailableMethod, "*"); idx != -1 && len(RequestedMethod) >= idx {
@@ -75,11 +70,13 @@ func (acl *ACL) CheckAccess(consumer, RequestedMethod string) bool {
 	return false
 }
 
-// Методы
 func (s *Server) Start(ctx context.Context, listener net.Listener) {
-	const OP = "Server.Start"
-
-	go s.GRPCServer.Serve(listener)
+	go func() {
+		err := s.GRPCServer.Serve(listener)
+		if err != nil {
+			panic(err)
+		}
+	}()
 
 	<-ctx.Done()
 
@@ -87,11 +84,10 @@ func (s *Server) Start(ctx context.Context, listener net.Listener) {
 }
 
 func (s *Server) Stop(ctx context.Context) {
-	const OP = "Server.Stop"
-
 	ctx.Done()
 
 	s.GRPCServer.GracefulStop()
+
 	s.Service.A.Broadcaster.Stop()
 }
 
@@ -101,8 +97,6 @@ func (s *Server) UnaryAccessInterceptor(
 	info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler,
 ) (interface{}, error) {
-	const OP = "Server.UnaryAccessInterceptor"
-
 	md, _ := metadata.FromIncomingContext(ctx)
 
 	var consumer string
@@ -128,8 +122,6 @@ func (s *Server) StreamAccessInterceptor(
 	info *grpc.StreamServerInfo,
 	handler grpc.StreamHandler,
 ) error {
-	const OP = "Server.StreamAccessInterceptor"
-
 	md, _ := metadata.FromIncomingContext(ss.Context())
 
 	var consumer string
@@ -151,8 +143,6 @@ func (s *Server) StreamAccessInterceptor(
 }
 
 func (a *Admin) Logging(nothing *Nothing, server Admin_LoggingServer) error {
-	const OP = "Admin.Logging"
-
 	eventChan := a.Broadcaster.Subscribe()
 	defer a.Broadcaster.Unsubscribe(eventChan)
 
@@ -169,8 +159,6 @@ func (a *Admin) Logging(nothing *Nothing, server Admin_LoggingServer) error {
 }
 
 func (a *Admin) Statistics(interval *StatInterval, server Admin_StatisticsServer) error {
-	const OP = "Admin.Statistics"
-
 	eventChan := a.Broadcaster.Subscribe()
 	defer a.Broadcaster.Unsubscribe(eventChan)
 
@@ -202,20 +190,14 @@ func (a *Admin) Statistics(interval *StatInterval, server Admin_StatisticsServer
 }
 
 func (b *Biz) Check(context.Context, *Nothing) (*Nothing, error) {
-	const OP = "Biz.Check"
-
 	return &Nothing{}, nil
 }
 
 func (b *Biz) Add(context.Context, *Nothing) (*Nothing, error) {
-	const OP = "Biz.Add"
-
 	return &Nothing{}, nil
 }
 
 func (b *Biz) Test(context.Context, *Nothing) (*Nothing, error) {
-	const OP = "Biz.Test"
-
 	return &Nothing{}, nil
 }
 
@@ -247,8 +229,6 @@ func (b *Broadcast) SendEvent(consumer, method, peer string) {
 }
 
 func (b *Broadcast) Subscribe() chan *Event {
-	const OP = "Broadcast.Subscribe"
-
 	ch := make(chan *Event)
 
 	b.subscribersMu.Lock()
@@ -264,8 +244,6 @@ func (b *Broadcast) Subscribe() chan *Event {
 }
 
 func (b *Broadcast) Unsubscribe(ch chan *Event) {
-	const OP = "Broadcast.Unsubscribe"
-
 	b.subscribersMu.Lock()
 	defer b.subscribersMu.Unlock()
 
@@ -279,8 +257,6 @@ func (b *Broadcast) Unsubscribe(ch chan *Event) {
 }
 
 func (b *Broadcast) Stop() {
-	const OP = "Broadcast.Stop"
-
 	b.subscribersMu.Lock()
 	defer b.subscribersMu.Unlock()
 
@@ -291,10 +267,7 @@ func (b *Broadcast) Stop() {
 	}
 }
 
-// Вспомогательные функции
 func StartMyMicroservice(ctx context.Context, listenAddr string, ACLData string) error {
-	const OP = "StartMyMicroservice"
-
 	svc, err := NewServer(ACLData)
 	if err != nil {
 		return err
@@ -316,13 +289,11 @@ func StartMyMicroservice(ctx context.Context, listenAddr string, ACLData string)
 	RegisterBizServer(svc.GRPCServer, NewBiz())
 	RegisterAdminServer(svc.GRPCServer, admin)
 
-	go svc.Start(ctx, svc.GRPCServer, listener)
+	go svc.Start(ctx, listener)
 	return nil
 }
 
 func NewServer(ACLData string) (*Server, error) {
-	const OP = "NewServer"
-
 	ACL, err := NewACL(ACLData)
 	if err != nil {
 		return nil, err
@@ -334,8 +305,6 @@ func NewServer(ACLData string) (*Server, error) {
 }
 
 func NewACL(ACLData string) (*ACL, error) {
-	const OP = "NewACL"
-
 	acl := ACL{make(map[string][]string)}
 
 	err := json.Unmarshal([]byte(ACLData), &acl.Directory)
@@ -347,8 +316,6 @@ func NewACL(ACLData string) (*ACL, error) {
 }
 
 func NewAdmin() *Admin {
-	const OP = "NewAdmin"
-
 	admin := &Admin{}
 
 	admin.Broadcaster = NewBroadcast()
@@ -357,8 +324,6 @@ func NewAdmin() *Admin {
 }
 
 func NewBiz() *Biz {
-	const OP = "NewBiz"
-
 	return &Biz{}
 }
 
