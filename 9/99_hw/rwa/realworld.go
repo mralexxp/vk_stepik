@@ -2,10 +2,13 @@ package main
 
 import (
 	"net/http"
+	"rwa/internal/handlers"
 )
 
 // сюда писать код
 
 func GetApp() http.Handler {
-	return nil
+	h := handlers.NewHandlers()
+
+	return h.GetRouter()
 }
