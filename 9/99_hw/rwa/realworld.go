@@ -5,10 +5,19 @@ import (
 	"rwa/internal/handlers"
 )
 
-// сюда писать код
+type App struct {
+	H *handlers.Handlers
+}
 
 func GetApp() http.Handler {
-	h := handlers.NewHandlers()
+	a := NewApp()
 
-	return h.GetRouter()
+	return a.H.GetRouter()
+}
+
+func NewApp() *App {
+
+	return &App{
+		H: handlers.NewHandlers(),
+	}
 }
