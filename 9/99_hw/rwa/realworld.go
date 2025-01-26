@@ -3,6 +3,8 @@ package main
 import (
 	"net/http"
 	"rwa/internal/handlers"
+	"rwa/internal/service"
+	"rwa/internal/storage/users"
 )
 
 type App struct {
@@ -16,8 +18,11 @@ func GetApp() http.Handler {
 }
 
 func NewApp() *App {
+	usersStore := users.NewUsersStore()
+
+	svc := service.NewService(usersStore)
 
 	return &App{
-		H: handlers.NewHandlers(),
+		H: handlers.NewHandlers(svc),
 	}
 }

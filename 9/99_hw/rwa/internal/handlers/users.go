@@ -1,9 +1,14 @@
 package handlers
 
-import "net/http"
+import (
+	"encoding/json"
+	"net/http"
+	"rwa/internal/dto"
+)
 
-func (h *Handlers) UsersLogin(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) UserLogin(w http.ResponseWriter, r *http.Request) {
 	const op = "Handlers.UsersLogin"
+
 	panic(op + ": not implemented")
 }
 
@@ -12,17 +17,35 @@ func (h *Handlers) UsersLogin(w http.ResponseWriter, r *http.Request) {
 //	panic(op + ": not implemented")
 //}
 
-func (h *Handlers) UsersRegister(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) UserRegister(w http.ResponseWriter, r *http.Request) {
 	const op = "Handlers.UsersRegister"
-	panic(op + ": not implemented")
+
+	RequestDTO := &dto.UserRegisterRequest{}
+
+	err := json.NewDecoder(r.Body).Decode(RequestDTO)
+	if err != nil {
+		panic(op + ": " + err.Error())
+	}
+
+	// TODO: Реализовать
+	ResponseDTO, err := h.Svc.Add(RequestDTO)
+	if err != nil {
+		//errs.SendError(fmt.Sprintf("%s: bad request: %v", op, RequestDTO))
+		// TODO: Возвращаем ошибку, если вернулась ошибка из бизнеса
+	}
+
+	err = json.NewEncoder(w).Encode(ResponseDTO)
+	if err != nil {
+		panic(op + ": " + err.Error())
+	}
 }
 
-func (h *Handlers) UsersGet(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) UserGet(w http.ResponseWriter, r *http.Request) {
 	const op = "Handlers.UsersGet"
 	panic(op + ": not implemented")
 }
 
-func (h *Handlers) UsersUpdate(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) UserUpdate(w http.ResponseWriter, r *http.Request) {
 	const op = "Handlers.UsersUpdate"
 	panic(op + ": not implemented")
 }

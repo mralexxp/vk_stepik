@@ -3,19 +3,26 @@ package handlers
 import (
 	"github.com/gorilla/mux"
 	"net/http"
+	"rwa/internal/dto"
 )
 
 const (
 	APIURL = "/api"
 )
 
-type Handlers struct {
-	router *mux.Router
+type UserServicer interface {
+	Add(*dto.UserRegisterRequest) (*dto.UserRegisterResponse, error)
 }
 
-func NewHandlers() *Handlers {
+type Handlers struct {
+	router *mux.Router
+	Svc    UserServicer
+}
+
+func NewHandlers(svc UserServicer) *Handlers {
 	h := &Handlers{
 		router: mux.NewRouter(),
+		Svc:    svc,
 	}
 
 	// Регистрация ручек в роутере
@@ -25,14 +32,14 @@ func NewHandlers() *Handlers {
 }
 
 func (h *Handlers) endpoints() {
-	// MethodNotAllowedPage
+	// Несовместимый метод
 	h.router.MethodNotAllowedHandler = http.HandlerFunc(h.MethodNotAllowedHandler)
 
 	// Auth handlers
-	h.router.Handle(APIURL+"/users/login", http.HandlerFunc(h.UsersLogin)).Methods(http.MethodPost) // auth user
-	h.router.Handle(APIURL+"/users", http.HandlerFunc(h.UsersRegister)).Methods(http.MethodPost)    // register new user
-	h.router.Handle(APIURL+"/users", http.HandlerFunc(h.UsersGet)).Methods(http.MethodGet)          // get current user
-	h.router.Handle(APIURL+"/users", http.HandlerFunc(h.UsersUpdate)).Methods(http.MethodPut)       // update current user
+	h.router.Handle(APIURL+"/users/login", http.HandlerFunc(h.UserLogin)).Methods(http.MethodPost) // auth user
+	h.router.Handle(APIURL+"/users", http.HandlerFunc(h.UserRegister)).Methods(http.MethodPost)    // register new user
+	h.router.Handle(APIURL+"/users", http.HandlerFunc(h.UserGet)).Methods(http.MethodGet)          // get current user
+	h.router.Handle(APIURL+"/users", http.HandlerFunc(h.UserUpdate)).Methods(http.MethodPut)       // update current user
 }
 
 func (h *Handlers) GetRouter() *mux.Router {
