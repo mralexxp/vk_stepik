@@ -2,8 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
+	"io"
+	"log"
 	"net/http"
 	"rwa/internal/dto"
+	"rwa/internal/errs"
 )
 
 func (h *Handlers) UserLogin(w http.ResponseWriter, r *http.Request) {
@@ -12,31 +15,35 @@ func (h *Handlers) UserLogin(w http.ResponseWriter, r *http.Request) {
 	panic(op + ": not implemented")
 }
 
-//func (h *Handlers) UsersLogout(w http.ResponseWriter, r *http.Request) {
-//	const op = "Handlers.UsersLogout"
-//	panic(op + ": not implemented")
-//}
-
 func (h *Handlers) UserRegister(w http.ResponseWriter, r *http.Request) {
 	const op = "Handlers.UsersRegister"
 
-	RequestDTO := &dto.UserRegisterRequest{}
-
-	err := json.NewDecoder(r.Body).Decode(RequestDTO)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		panic(op + ": " + err.Error())
+		log.Println(op, err)
+		errs.SendError(w, http.StatusBadRequest, "body read error: "+err.Error())
+		return
 	}
 
-	// TODO: Реализовать
+	RequestDTO := &dto.UserRegisterRequest{}
+
+	err = json.Unmarshal(body, RequestDTO)
+	if err != nil {
+		log.Println(op, err)
+		return
+	}
+
 	ResponseDTO, err := h.Svc.Add(RequestDTO)
 	if err != nil {
-		//errs.SendError(fmt.Sprintf("%s: bad request: %v", op, RequestDTO))
-		// TODO: Возвращаем ошибку, если вернулась ошибка из бизнеса
+		log.Println(op + ": " + err.Error())
+		errs.SendError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	err = json.NewEncoder(w).Encode(ResponseDTO)
 	if err != nil {
-		panic(op + ": " + err.Error())
+		log.Println(op + ": " + err.Error())
+		return
 	}
 }
 

@@ -2,9 +2,9 @@ package dto
 
 // Register user DTO
 type UserRegisterRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Username string `json:"username" valid:"required,alphanum"`
+	Email    string `json:"email" valid:"required,email"`
+	Password string `json:"password" valid:"required"`
 }
 
 type UserRegisterResponse struct {
