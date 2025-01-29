@@ -6,7 +6,8 @@ import (
 	"time"
 )
 
-var ExpirationSession int64 = 3600
+// срок истечения сессии (3600 сек = 1 час)
+var ExpirationSession int64 = 3600 // секунд
 
 /*
 для увеличения производительности можно добавить дополнительное поле, содержащее токены у каждого пользователя
@@ -124,6 +125,7 @@ func (sm *SessionManager) ClearExpired() int {
 	deleted := 0
 
 	now := time.Now().Unix()
+
 	for privateKey, sess := range sm.store {
 		if now > sess.Expire {
 			delete(sm.store, privateKey)

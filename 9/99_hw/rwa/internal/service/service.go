@@ -9,10 +9,21 @@ type UserStorer interface {
 	UpdateUser(user *models.User) error
 }
 
-type Service struct {
-	Users UserStorer
+type SessManager interface {
+	Create(string) (string, error)
+	Check(string) (string, bool)
+	DestroyByToken(string) (string, error)
+	DestroyByUsername(string) (int, error)
 }
 
-func NewService(users UserStorer) *Service {
-	return &Service{Users: users}
+type Service struct {
+	Users UserStorer
+	SM    SessManager
+}
+
+func NewService(users UserStorer, sm SessManager) *Service {
+	return &Service{
+		Users: users,
+		SM:    sm,
+	}
 }

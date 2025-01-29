@@ -33,7 +33,7 @@ func (h *Handlers) UserRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ResponseDTO, err := h.Svc.Add(RequestDTO)
+	ResponseDTO, err := h.Svc.Register(RequestDTO)
 	if err != nil {
 		log.Println(op + ": " + err.Error())
 		errs.SendError(w, http.StatusBadRequest, err.Error())
