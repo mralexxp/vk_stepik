@@ -3,17 +3,19 @@ package service
 import "rwa/internal/models"
 
 type UserStorer interface {
-	AddUser(user *models.User) error
-	GetUser(username string) (*models.User, error)
-	DeleteUser(username string) error
-	UpdateUser(user *models.User) error
+	Add(*models.User) (uint64, error)
+	GetByUsername(string) (*models.User, error)
+	GetByID(uint64) (*models.User, error)
+	DeleteByUsername(string) error
+	DeleteByID(uint64) error
+	Update(*models.User) error
 }
 
 type SessManager interface {
-	Create(string) (string, error)
-	Check(string) (string, bool)
-	DestroyByToken(string) (string, error)
-	DestroyByUsername(string) (int, error)
+	Create(uint64) (string, error)
+	Check(string) (uint64, bool)
+	DestroyByToken(string) (uint64, error)
+	DestroyByID(uint64) (int, error)
 }
 
 type Service struct {
