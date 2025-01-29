@@ -28,7 +28,7 @@ func (s *Service) Register(UserDTO *dto.UserRegisterRequest) (*dto.UserRegisterR
 		return nil, err
 	}
 
-	err = s.Users.AddUser(&models.User{
+	id, err := s.Users.Add(&models.User{
 		Username: UserDTO.Username,
 		Email:    UserDTO.Email,
 		Password: hashedPassword,
@@ -40,7 +40,7 @@ func (s *Service) Register(UserDTO *dto.UserRegisterRequest) (*dto.UserRegisterR
 		return nil, err
 	}
 
-	token, err := s.SM.Create(UserDTO.Username)
+	token, err := s.SM.Create(id)
 	if err != nil {
 		return nil, err
 	}
