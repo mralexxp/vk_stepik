@@ -28,6 +28,9 @@ func NewHandlers(svc UserServicer) *Handlers {
 	// Регистрация ручек в роутере
 	h.endpoints()
 
+	// Middleware
+	h.router.Use(h.ContentTypeMiddleWare)
+
 	return h
 }
 
