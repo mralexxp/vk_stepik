@@ -14,3 +14,16 @@ type UserRegisterResponse struct {
 	Bio      string `json:"bio"`
 	Image    string `json:"image"`
 }
+
+type UserLoginRequest struct {
+	Username string `json:"username" valid:"required,alphanum"`
+	Password string `json:"password" valid:"required"`
+}
+
+type UserLoginResponse struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Token    string `json:"token"`
+	Bio      string `json:"bio"`
+	Image    string `json:"image"`
+}
