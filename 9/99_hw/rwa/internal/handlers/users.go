@@ -21,7 +21,7 @@ func (h *Handlers) UserRegister(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Println(op, err)
-		errs.SendError(w, http.StatusBadRequest, "body read error: "+err.Error())
+		errs.SendError(w, http.StatusUnprocessableEntity, "body read error: "+err.Error())
 		return
 	}
 
@@ -36,10 +36,11 @@ func (h *Handlers) UserRegister(w http.ResponseWriter, r *http.Request) {
 	ResponseDTO, err := h.Svc.Register(RequestDTO)
 	if err != nil {
 		log.Println(op + ": " + err.Error())
-		errs.SendError(w, http.StatusBadRequest, err.Error())
+		errs.SendError(w, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
 
+	w.WriteHeader(http.StatusCreated)
 	err = json.NewEncoder(w).Encode(ResponseDTO)
 	if err != nil {
 		log.Println(op + ": " + err.Error())
