@@ -12,6 +12,7 @@ type User struct {
 	Created  int64  `json:"created"`
 	Updated  int64  `json:"updated"`
 	Bio      string `json:"bio"`
+	Image    string `json:"image"`
 	// [id]
 	Follows map[uint64]struct{}
 }

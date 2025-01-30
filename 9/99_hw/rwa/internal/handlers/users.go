@@ -12,7 +12,34 @@ import (
 func (h *Handlers) UserLogin(w http.ResponseWriter, r *http.Request) {
 	const op = "Handlers.UsersLogin"
 
-	panic(op + ": not implemented")
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		errs.SendError(w, http.StatusUnprocessableEntity, "Error reading request body")
+		return
+	}
+
+	requestDTO := &dto.UserLoginRequest{}
+
+	err = json.Unmarshal(body, requestDTO)
+	if err != nil {
+		errs.SendError(w, http.StatusUnprocessableEntity, "Error parsing request body")
+		return
+	}
+
+	responseDTO, err := h.Svc.Login(requestDTO)
+	if err != nil {
+		// TODO: Возможно, ошибки придется отделить
+		log.Println(op + ": " + err.Error())
+		errs.SendError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(w).Encode(responseDTO)
+	if err != nil {
+		log.Println(op + ": " + err.Error())
+		return
+	}
 }
 
 func (h *Handlers) UserRegister(w http.ResponseWriter, r *http.Request) {
@@ -25,15 +52,15 @@ func (h *Handlers) UserRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	RequestDTO := &dto.UserRegisterRequest{}
+	requestDTO := &dto.UserRegisterRequest{}
 
-	err = json.Unmarshal(body, RequestDTO)
+	err = json.Unmarshal(body, requestDTO)
 	if err != nil {
 		log.Println(op, err)
 		return
 	}
 
-	ResponseDTO, err := h.Svc.Register(RequestDTO)
+	responseDTO, err := h.Svc.Register(requestDTO)
 	if err != nil {
 		log.Println(op + ": " + err.Error())
 		errs.SendError(w, http.StatusUnprocessableEntity, err.Error())
@@ -41,7 +68,7 @@ func (h *Handlers) UserRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	err = json.NewEncoder(w).Encode(ResponseDTO)
+	err = json.NewEncoder(w).Encode(responseDTO)
 	if err != nil {
 		log.Println(op + ": " + err.Error())
 		return

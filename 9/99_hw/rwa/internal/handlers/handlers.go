@@ -12,6 +12,7 @@ const (
 
 type UserServicer interface {
 	Register(*dto.UserRegisterRequest) (*dto.UserRegisterResponse, error)
+	Login(*dto.UserLoginRequest) (*dto.UserLoginResponse, error)
 }
 
 type Handlers struct {

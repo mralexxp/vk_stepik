@@ -23,14 +23,14 @@ func (s *Service) Register(UserDTO *dto.UserRegisterRequest) (*dto.UserRegisterR
 	}
 
 	// Хешируем пароль
-	hashedPassword, err := password.Hash(UserDTO.Password)
+	hashedPassword, err := password.Hash(UserDTO.User.Password)
 	if err != nil {
 		return nil, err
 	}
 
 	id, err := s.Users.Add(&models.User{
-		Username: UserDTO.Username,
-		Email:    UserDTO.Email,
+		Username: UserDTO.User.Username,
+		Email:    UserDTO.User.Email,
 		Password: hashedPassword,
 		Created:  time.Now().Unix(),
 		Updated:  0,
@@ -45,11 +45,47 @@ func (s *Service) Register(UserDTO *dto.UserRegisterRequest) (*dto.UserRegisterR
 		return nil, err
 	}
 
-	return &dto.UserRegisterResponse{
-		Email:    UserDTO.Email,
+	return dto.NewRegisterResponse(
+		UserDTO.User.Email,
+		token,
+		UserDTO.User.Username,
+		"",
+		"",
+	), nil
+}
+
+func (s *Service) Login(UserDTO *dto.UserLoginRequest) (*dto.UserLoginResponse, error) {
+	const op = "Service.Login"
+
+	ok, err := govalidator.ValidateStruct(UserDTO)
+	if err != nil {
+		return nil, err
+	}
+
+	if !ok {
+		return nil, fmt.Errorf(op+": input is invalid: %v", *UserDTO)
+	}
+
+	user, err := s.Users.GetByUsername(UserDTO.Username)
+	if err != nil {
+		return nil, err
+	}
+
+	if !password.Check(UserDTO.Password, user.Password) {
+		return nil, fmt.Errorf("incorrect username or password")
+	}
+
+	token, err := s.SM.Create(user.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.UserLoginResponse{
+		Username: user.Username,
+		Email:    user.Email,
 		Token:    token,
-		Username: UserDTO.Username,
-		Bio:      "",
-		Image:    "",
+		Bio:      user.Bio,
+		Image:    user.Image,
 	}, nil
+
 }
