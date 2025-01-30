@@ -11,7 +11,7 @@ const (
 )
 
 type UserServicer interface {
-	Register(*dto.UserRegisterRequest) (*dto.UserRegisterResponse, error)
+	Register(*dto.UserRegisterRequest) (*dto.UserResponse, error)
 	Login(*dto.UserLoginRequest) (*dto.UserLoginResponse, error)
 }
 

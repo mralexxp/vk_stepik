@@ -1,18 +1,16 @@
 package models
 
+import "time"
+
 type User struct {
-	/*
-		Не использовал ID, так как проект работает на мапах, где получаем и отправляем юзернеймы.
-		Без использования реляционной БД это придется делать новой MAPой
-	*/
-	ID       uint64 `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Created  int64  `json:"created"`
-	Updated  int64  `json:"updated"`
-	Bio      string `json:"bio"`
-	Image    string `json:"image"`
+	ID        uint64    `json:"id"`
+	Username  string    `json:"username"`
+	Email     string    `json:"email"`
+	Password  string    `json:"password"`
+	CreatedAt time.Time `json:"created"`
+	UpdatedAt time.Time `json:"updated"`
+	Bio       string    `json:"bio"`
+	Image     string    `json:"image"`
 	// [id]
 	Follows map[uint64]struct{}
 }

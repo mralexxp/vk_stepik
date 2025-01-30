@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func (s *Service) Register(UserDTO *dto.UserRegisterRequest) (*dto.UserRegisterResponse, error) {
+func (s *Service) Register(UserDTO *dto.UserRegisterRequest) (*dto.UserResponse, error) {
 	const op = "Service.Add"
 
 	// Валидируем полученные данные
@@ -28,30 +28,28 @@ func (s *Service) Register(UserDTO *dto.UserRegisterRequest) (*dto.UserRegisterR
 		return nil, err
 	}
 
-	id, err := s.Users.Add(&models.User{
-		Username: UserDTO.User.Username,
-		Email:    UserDTO.User.Email,
-		Password: hashedPassword,
-		Created:  time.Now().Unix(),
-		Updated:  0,
-		Bio:      "",
-	})
+	user := &models.User{
+		Username:  UserDTO.User.Username,
+		Email:     UserDTO.User.Email,
+		Password:  hashedPassword,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Bio:       "",
+	}
+
+	_, err = s.Users.Add(user)
 	if err != nil {
 		return nil, err
 	}
 
-	token, err := s.SM.Create(id)
-	if err != nil {
-		return nil, err
+	responseData := &dto.UserDataResponse{
+		Email:     UserDTO.User.Email,
+		CreatedAt: user.CreatedAt.Format(time.RFC3339),
+		UpdatedAt: user.UpdatedAt.Format(time.RFC3339),
+		Username:  UserDTO.User.Username,
 	}
 
-	return dto.NewRegisterResponse(
-		UserDTO.User.Email,
-		token,
-		UserDTO.User.Username,
-		"",
-		"",
-	), nil
+	return &dto.UserResponse{User: responseData}, nil
 }
 
 func (s *Service) Login(UserDTO *dto.UserLoginRequest) (*dto.UserLoginResponse, error) {
