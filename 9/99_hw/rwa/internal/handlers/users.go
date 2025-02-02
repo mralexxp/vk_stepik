@@ -18,7 +18,7 @@ func (h *Handlers) UserLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requestDTO := &dto.UserLoginRequest{}
+	requestDTO := &dto.UserRequest{}
 
 	err = json.Unmarshal(body, requestDTO)
 	if err != nil {
@@ -52,7 +52,7 @@ func (h *Handlers) UserRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requestDTO := &dto.UserRegisterRequest{}
+	requestDTO := &dto.UserRequest{}
 
 	err = json.Unmarshal(body, requestDTO)
 	if err != nil {

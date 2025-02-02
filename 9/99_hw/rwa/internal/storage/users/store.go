@@ -7,15 +7,21 @@ import (
 )
 
 type Store struct {
-	db         map[uint64]*models.User
+	db map[uint64]*models.User
+
+	// relations
 	UsernameID map[string]uint64
-	nextID     uint64
+	EmailID    map[string]uint64
+
+	// increment
+	nextID uint64
 }
 
 func NewUsersStore() *Store {
 	return &Store{
 		db:         make(map[uint64]*models.User),
 		UsernameID: make(map[string]uint64),
+		EmailID:    make(map[string]uint64),
 		nextID:     1, // ID начинаются с единицы
 	}
 }
@@ -25,10 +31,15 @@ func (s *Store) Add(user *models.User) (uint64, error) {
 		return 0, fmt.Errorf("username %s already exists", user.Username)
 	}
 
+	if _, ok := s.EmailID[user.Email]; ok {
+		return 0, fmt.Errorf("username %s already exists", user.Username)
+	}
+
 	user.ID = s.nextID
 	s.nextID++
 
 	s.UsernameID[user.Username] = user.ID
+	s.EmailID[user.Email] = user.ID
 	s.db[user.ID] = user
 
 	return user.ID, nil
@@ -46,6 +57,18 @@ func (s *Store) GetByUsername(username string) (*models.User, error) {
 	return nil, fmt.Errorf("username '%s' not found", username)
 }
 
+func (s *Store) GetByEmail(email string) (*models.User, error) {
+	if id, ok := s.EmailID[email]; ok {
+		if u, ok := s.db[id]; ok {
+			return u, nil
+		}
+
+		log.Println("user found in relation EmailID, but not found DB: ", email, id)
+	}
+
+	return nil, fmt.Errorf("email '%s' not found", email)
+}
+
 func (s *Store) GetByID(id uint64) (*models.User, error) {
 	if u, ok := s.db[id]; ok {
 		return u, nil
@@ -56,6 +79,9 @@ func (s *Store) GetByID(id uint64) (*models.User, error) {
 
 func (s *Store) DeleteByUsername(username string) error {
 	if id, ok := s.UsernameID[username]; ok {
+		if u, ok := s.db[id]; ok {
+			delete(s.EmailID, u.Email)
+		}
 		delete(s.UsernameID, username)
 		delete(s.db, id)
 		return nil
@@ -64,9 +90,23 @@ func (s *Store) DeleteByUsername(username string) error {
 	return fmt.Errorf("username '%s' not found", username)
 }
 
+func (s *Store) DeleteByEmail(email string) error {
+	if id, ok := s.EmailID[email]; ok {
+		if u, ok := s.db[id]; ok {
+			delete(s.UsernameID, u.Username)
+		}
+		delete(s.EmailID, email)
+		delete(s.db, id)
+		return nil
+	}
+
+	return fmt.Errorf("email '%s' not found", email)
+}
+
 func (s *Store) DeleteByID(id uint64) error {
 	if u, ok := s.db[id]; ok {
 		delete(s.UsernameID, u.Username)
+		delete(s.EmailID, u.Email)
 		delete(s.db, id)
 		return nil
 	}

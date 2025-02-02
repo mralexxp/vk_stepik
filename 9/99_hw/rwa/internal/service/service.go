@@ -5,6 +5,7 @@ import "rwa/internal/models"
 type UserStorer interface {
 	Add(*models.User) (uint64, error)
 	GetByUsername(string) (*models.User, error)
+	GetByEmail(string) (*models.User, error)
 	GetByID(uint64) (*models.User, error)
 	DeleteByUsername(string) error
 	DeleteByID(uint64) error

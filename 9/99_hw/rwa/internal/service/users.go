@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func (s *Service) Register(UserDTO *dto.UserRegisterRequest) (*dto.UserResponse, error) {
+func (s *Service) Register(UserDTO *dto.UserRequest) (*dto.UserResponse, error) {
 	const op = "Service.Add"
 
 	ok, err := govalidator.ValidateStruct(UserDTO)
@@ -58,24 +58,26 @@ func (s *Service) Register(UserDTO *dto.UserRegisterRequest) (*dto.UserResponse,
 	return &dto.UserResponse{User: responseData}, nil
 }
 
-func (s *Service) Login(UserDTO *dto.UserLoginRequest) (*dto.UserLoginResponse, error) {
+func (s *Service) Login(UserDTO *dto.UserRequest) (*dto.UserResponse, error) {
 	const op = "Service.Login"
 
 	ok, err := govalidator.ValidateStruct(UserDTO)
+	if err != nil || !ok {
+		return nil, fmt.Errorf(op + ": input is invalid")
+	}
+
+	// Валидация полей email и password (не чек)
+	if !LoginValid(UserDTO.User) {
+		return nil, fmt.Errorf(op + ": invalid email or password")
+	}
+
+	// PassCheck
+	user, err := s.Users.GetByEmail(UserDTO.User.Email)
 	if err != nil {
 		return nil, err
 	}
 
-	if !ok {
-		return nil, fmt.Errorf(op+": input is invalid: %v", *UserDTO)
-	}
-
-	user, err := s.Users.GetByUsername(UserDTO.Username)
-	if err != nil {
-		return nil, err
-	}
-
-	if !password.Check(UserDTO.Password, user.Password) {
+	if !password.Check(UserDTO.User.Password, user.Password) {
 		return nil, fmt.Errorf("incorrect username or password")
 	}
 
@@ -84,12 +86,18 @@ func (s *Service) Login(UserDTO *dto.UserLoginRequest) (*dto.UserLoginResponse, 
 		return nil, err
 	}
 
-	return &dto.UserLoginResponse{
-		Username: user.Username,
-		Email:    user.Email,
-		Token:    token,
-		Bio:      user.Bio,
-		Image:    user.Image,
+	response := &dto.UserDataResponse{
+		Username:  user.Username,
+		Email:     user.Email,
+		Token:     token,
+		CreatedAt: user.CreatedAt.Format(time.RFC3339),
+		UpdatedAt: user.UpdatedAt.Format(time.RFC3339),
+		Bio:       user.Bio,
+		Image:     user.Image,
+	}
+
+	return &dto.UserResponse{
+		User: response,
 	}, nil
 
 }
