@@ -81,6 +81,7 @@ func (s *Service) Login(UserDTO *dto.UserRequest) (*dto.UserResponse, error) {
 		return nil, fmt.Errorf("incorrect username or password")
 	}
 
+	// Успешная аутентификация
 	token, err := s.SM.Create(user.ID)
 	if err != nil {
 		return nil, err
