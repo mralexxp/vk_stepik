@@ -12,17 +12,15 @@ import (
 func (s *Service) Register(UserDTO *dto.UserRegisterRequest) (*dto.UserResponse, error) {
 	const op = "Service.Add"
 
-	// Валидируем полученные данные
 	ok, err := govalidator.ValidateStruct(UserDTO)
 	if err != nil {
 		return nil, err
 	}
 
-	if !ok {
+	if !ok || RegisterValid(UserDTO.User) {
 		return nil, fmt.Errorf(op+": input is invalid: %v", *UserDTO)
 	}
 
-	// Хешируем пароль
 	hashedPassword, err := password.Hash(UserDTO.User.Password)
 	if err != nil {
 		return nil, err
@@ -37,7 +35,12 @@ func (s *Service) Register(UserDTO *dto.UserRegisterRequest) (*dto.UserResponse,
 		Bio:       "",
 	}
 
-	_, err = s.Users.Add(user)
+	id, err := s.Users.Add(user)
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := s.SM.Create(id)
 	if err != nil {
 		return nil, err
 	}
@@ -47,6 +50,9 @@ func (s *Service) Register(UserDTO *dto.UserRegisterRequest) (*dto.UserResponse,
 		CreatedAt: user.CreatedAt.Format(time.RFC3339),
 		UpdatedAt: user.UpdatedAt.Format(time.RFC3339),
 		Username:  UserDTO.User.Username,
+		Token:     token,
+		Bio:       UserDTO.User.Bio,
+		Image:     UserDTO.User.Image,
 	}
 
 	return &dto.UserResponse{User: responseData}, nil
