@@ -17,7 +17,7 @@ func (s *Service) Register(UserDTO *dto.UserRegisterRequest) (*dto.UserResponse,
 		return nil, err
 	}
 
-	if !ok || RegisterValid(UserDTO.User) {
+	if !ok || !RegisterValid(UserDTO.User) {
 		return nil, fmt.Errorf(op+": input is invalid: %v", *UserDTO)
 	}
 
