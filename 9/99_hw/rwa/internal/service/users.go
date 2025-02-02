@@ -3,13 +3,14 @@ package service
 import (
 	"fmt"
 	"github.com/asaskevich/govalidator"
+	"net/http"
 	"rwa/internal/dto"
 	"rwa/internal/models"
 	"rwa/internal/password"
 	"time"
 )
 
-func (s *Service) Register(UserDTO *dto.UserRequest) (*dto.UserResponse, error) {
+func (s *Service) RegisterUser(UserDTO *dto.UserRequest) (*dto.UserResponse, error) {
 	const op = "Service.Add"
 
 	ok, err := govalidator.ValidateStruct(UserDTO)
@@ -58,7 +59,7 @@ func (s *Service) Register(UserDTO *dto.UserRequest) (*dto.UserResponse, error) 
 	return &dto.UserResponse{User: responseData}, nil
 }
 
-func (s *Service) Login(UserDTO *dto.UserRequest) (*dto.UserResponse, error) {
+func (s *Service) LoginUser(UserDTO *dto.UserRequest) (*dto.UserResponse, error) {
 	const op = "Service.Login"
 
 	ok, err := govalidator.ValidateStruct(UserDTO)
@@ -100,5 +101,9 @@ func (s *Service) Login(UserDTO *dto.UserRequest) (*dto.UserResponse, error) {
 	return &dto.UserResponse{
 		User: response,
 	}, nil
+
+}
+
+func (s *Service) GetCurrentUser(header *http.Header) error {
 
 }
