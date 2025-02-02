@@ -30,3 +30,7 @@ func NewService(users UserStorer, sm SessManager) *Service {
 		SM:    sm,
 	}
 }
+
+func (s *Service) GetSessionManager() SessManager {
+	return s.SM
+}

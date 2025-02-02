@@ -4,30 +4,36 @@ import (
 	"github.com/gorilla/mux"
 	"net/http"
 	"rwa/internal/dto"
+	"rwa/internal/service"
 )
 
-const (
-	APIURL = "/api"
-)
+const APIURL = "/api"
+
+var NoAuthURL map[string]string = map[string]string{
+	"/api/users/login": http.MethodPost,
+	"/api/users":       http.MethodPost,
+}
 
 type UserServicer interface {
 	RegisterUser(*dto.UserRequest) (*dto.UserResponse, error)
 	LoginUser(*dto.UserRequest) (*dto.UserResponse, error)
 	GetCurrentUser(string) (*dto.UserResponse, error)
-	UpdateUser(*dto.UserRequest) (*dto.UserResponse, error)
+	//UpdateUser(*dto.UserRequest) (*dto.UserResponse, error)
+
+	GetSessionManager() service.SessManager
 }
 
 type Handlers struct {
 	router *mux.Router
 	Svc    UserServicer
-	NoAuth map[string]struct{}
+	NoAuth map[string]string
 }
 
 func NewHandlers(svc UserServicer) *Handlers {
 	h := &Handlers{
 		router: mux.NewRouter(),
 		Svc:    svc,
-		NoAuth: make(map[string]struct{}),
+		NoAuth: NoAuthURL,
 	}
 
 	// Регистрация ручек в роутере

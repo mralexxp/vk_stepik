@@ -3,7 +3,6 @@ package service
 import (
 	"fmt"
 	"github.com/asaskevich/govalidator"
-	"net/http"
 	"rwa/internal/dto"
 	"rwa/internal/models"
 	"rwa/internal/password"
@@ -104,6 +103,25 @@ func (s *Service) LoginUser(UserDTO *dto.UserRequest) (*dto.UserResponse, error)
 
 }
 
-func (s *Service) GetCurrentUser(header *http.Header) error {
+func (s *Service) GetCurrentUser(token string) (*dto.UserResponse, error) {
+	id, ok := s.SM.Check(token)
+	if !ok {
+		return nil, fmt.Errorf("invalid token")
+	}
 
+	user, err := s.Users.GetByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	response := &dto.UserDataResponse{
+		Email:     user.Email,
+		CreatedAt: user.CreatedAt.Format(time.RFC3339),
+		UpdatedAt: user.UpdatedAt.Format(time.RFC3339),
+		Username:  user.Username,
+		Bio:       user.Bio,
+		Image:     user.Image,
+	}
+
+	return &dto.UserResponse{User: response}, nil
 }
