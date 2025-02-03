@@ -10,8 +10,6 @@ import (
 )
 
 func (s *Service) RegisterUser(userDTO *dto.UserRequest) (*dto.UserResponse, error) {
-	const op = "Service.Add"
-
 	ok, err := govalidator.ValidateStruct(userDTO)
 	if err != nil {
 		return nil, err
@@ -150,6 +148,7 @@ func (s *Service) UpdateUser(userDTO *dto.UserRequest) (*dto.UserResponse, error
 		Username:  newUser.Username,
 		Bio:       newUser.Bio,
 		Image:     newUser.Image,
+		Token:     userDTO.User.Token,
 	}
 
 	return &dto.UserResponse{User: response}, nil

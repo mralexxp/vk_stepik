@@ -6,7 +6,12 @@ import (
 )
 
 func RegisterValid(userData *dto.UserDataRequest) bool {
-	if !govalidator.IsEmail(userData.Email) || !govalidator.IsAlphanumeric(userData.Username) {
+
+	if !govalidator.IsEmail(userData.Email) {
+		return false
+	}
+
+	if !govalidator.Matches(userData.Username, "^[a-zA-Z0-9_!@#$%^&*()-+=]+$") {
 		return false
 	}
 
