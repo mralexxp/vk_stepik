@@ -96,6 +96,32 @@ func (h *Handlers) UserGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) UserUpdate(w http.ResponseWriter, r *http.Request) {
-	const op = "Handlers.UsersUpdate"
-	panic(op + ": not implemented")
+	const op = "Handlers.UserUpdate"
+
+	// Для получения ID пользователя в бизнес-логике, в контексте передавать такую информацию опасно?
+	token, err := utils.GetHeaderToken(r)
+	if err != nil {
+		errs.SendError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	requestDTO := &dto.UserRequest{}
+	err = json.NewDecoder(r.Body).Decode(requestDTO)
+	if err != nil {
+		errs.SendError(w, http.StatusUnprocessableEntity, "Error parsing request body")
+		return
+	}
+
+	requestDTO.User.Token = token
+	responseDTO, err := h.Svc.UpdateUser(requestDTO)
+	if err != nil {
+		errs.SendError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(w).Encode(responseDTO)
+	if err != nil {
+		log.Println(op + ": " + err.Error())
+	}
 }

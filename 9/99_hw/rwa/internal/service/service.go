@@ -9,7 +9,7 @@ type UserStorer interface {
 	GetByID(uint64) (*models.User, error)
 	DeleteByUsername(string) error
 	DeleteByID(uint64) error
-	Update(*models.User) error
+	Update(*models.User) (*models.User, error)
 }
 
 type SessManager interface {

@@ -18,7 +18,7 @@ type UserServicer interface {
 	RegisterUser(*dto.UserRequest) (*dto.UserResponse, error)
 	LoginUser(*dto.UserRequest) (*dto.UserResponse, error)
 	GetCurrentUser(string) (*dto.UserResponse, error)
-	//UpdateUser(*dto.UserRequest) (*dto.UserResponse, error)
+	UpdateUser(*dto.UserRequest) (*dto.UserResponse, error)
 
 	GetSessionManager() service.SessManager
 }

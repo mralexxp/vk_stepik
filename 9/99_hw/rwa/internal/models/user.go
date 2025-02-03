@@ -11,6 +11,5 @@ type User struct {
 	UpdatedAt time.Time `json:"updated"`
 	Bio       string    `json:"bio"`
 	Image     string    `json:"image"`
-	// [id]
-	Follows map[uint64]struct{}
+	Follows   map[uint64]struct{}
 }

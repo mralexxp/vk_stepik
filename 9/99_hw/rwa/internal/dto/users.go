@@ -10,12 +10,12 @@ type UserResponse struct {
 
 // user DTO
 type UserDataRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Token    string `json:"token"`
-	Bio      string `json:"bio"`
-	Image    string `json:"image"`
+	Username string `json:"username,omitempty"`
+	Email    string `json:"email,omitempty"`
+	Password string `json:"password,omitempty"`
+	Token    string `json:"token,omitempty"`
+	Bio      string `json:"bio,omitempty"`
+	Image    string `json:"image,omitempty"`
 }
 
 type UserDataResponse struct {

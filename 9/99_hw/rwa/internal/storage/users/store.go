@@ -3,7 +3,9 @@ package users
 import (
 	"fmt"
 	"log"
+	"reflect"
 	"rwa/internal/models"
+	"time"
 )
 
 type Store struct {
@@ -114,9 +116,49 @@ func (s *Store) DeleteByID(id uint64) error {
 	return fmt.Errorf("user %d not found", id)
 }
 
-func (s *Store) Update(user *models.User) error {
-	// todo: обновляются только переданные поля
-	const op = "Store.UpdateUser"
+func (s *Store) Update(updateUser *models.User) (*models.User, error) {
+	currentUser, ok := s.db[updateUser.ID]
+	if !ok {
+		return nil, fmt.Errorf("user %d not found", updateUser.ID)
+	}
 
-	panic(op + ": implement me")
+	// Сохранение значений для обновления базы по окончанию
+	oldUsername := currentUser.Username
+	oldEmail := currentUser.Email
+
+	updateV := reflect.ValueOf(updateUser).Elem()
+	currentV := reflect.ValueOf(currentUser).Elem()
+
+	for i := 0; i < updateV.NumField(); i++ {
+		field := updateV.Field(i)
+		fieldName := updateV.Type().Field(i).Name
+
+		if fieldName == "ID" || fieldName == "CreatedAt" || fieldName == "Follows" || fieldName == "UpdatedAt" {
+			continue
+		}
+
+		if !field.IsZero() {
+			currentField := currentV.FieldByName(fieldName)
+			if currentField.IsValid() && currentField.CanSet() {
+				currentField.Set(field)
+			}
+		}
+	}
+
+	// Обновляем базы:
+	if _, ok := s.UsernameID[oldUsername]; ok {
+		delete(s.UsernameID, oldUsername)
+	}
+
+	s.UsernameID[updateUser.Username] = updateUser.ID
+
+	if _, ok := s.EmailID[oldEmail]; ok {
+		delete(s.EmailID, oldEmail)
+	}
+
+	s.EmailID[updateUser.Email] = updateUser.ID
+
+	currentUser.UpdatedAt = time.Now()
+
+	return currentUser, nil
 }
