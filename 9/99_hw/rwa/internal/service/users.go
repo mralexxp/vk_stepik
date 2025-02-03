@@ -18,7 +18,7 @@ func (s *Service) RegisterUser(UserDTO *dto.UserRequest) (*dto.UserResponse, err
 	}
 
 	if !ok || !RegisterValid(UserDTO.User) {
-		return nil, fmt.Errorf(op+": input is invalid: %v", *UserDTO)
+		return nil, fmt.Errorf(": input is invalid: %v", *UserDTO)
 	}
 
 	hashedPassword, err := password.Hash(UserDTO.User.Password)
@@ -59,16 +59,14 @@ func (s *Service) RegisterUser(UserDTO *dto.UserRequest) (*dto.UserResponse, err
 }
 
 func (s *Service) LoginUser(UserDTO *dto.UserRequest) (*dto.UserResponse, error) {
-	const op = "Service.Login"
-
 	ok, err := govalidator.ValidateStruct(UserDTO)
 	if err != nil || !ok {
-		return nil, fmt.Errorf(op + ": input is invalid")
+		return nil, fmt.Errorf(": input is invalid")
 	}
 
 	// Валидация полей email и password (не чек)
 	if !LoginValid(UserDTO.User) {
-		return nil, fmt.Errorf(op + ": invalid email or password")
+		return nil, fmt.Errorf(": invalid email or password")
 	}
 
 	// PassCheck
