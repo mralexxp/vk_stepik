@@ -11,7 +11,15 @@ type ArticleResponse struct {
 }
 
 type ArticlesResponse struct {
-	Articles []*ArticleResponseData `json:"articles"`
+	Articles      []*ArticleResponseData `json:"articles"`
+	ArticlesCount int                    `json:"articlesCount"`
+}
+
+type ArticleRequestData struct {
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Body        string   `json:"body"`
+	TagList     []string `json:"tagList"`
 }
 
 type ArticleResponseData struct {
@@ -23,11 +31,4 @@ type ArticleResponseData struct {
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
 	Author      uint64    `json:"author"`
-}
-
-type ArticleRequestData struct {
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Body        string   `json:"body"`
-	TagList     []string `json:"tagList"`
 }

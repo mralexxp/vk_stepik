@@ -11,4 +11,5 @@ type Article struct {
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
 	Author      uint64    `json:"author"`
+	Followers   []uint64  `json:"followers"`
 }
