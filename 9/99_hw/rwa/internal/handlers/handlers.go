@@ -10,8 +10,12 @@ import (
 const APIURL = "/api"
 
 var NoAuthURL map[string]string = map[string]string{
+	// users
 	"/api/users/login": http.MethodPost,
 	"/api/users":       http.MethodPost,
+
+	// articles
+	"/api/articles": http.MethodGet,
 }
 
 type UserServicer interface {
@@ -55,6 +59,14 @@ func (h *Handlers) endpoints() {
 	h.router.Handle(APIURL+"/users", http.HandlerFunc(h.UserRegister)).Methods(http.MethodPost)    // register new user
 	h.router.Handle(APIURL+"/user", http.HandlerFunc(h.UserGet)).Methods(http.MethodGet)           // get current user
 	h.router.Handle(APIURL+"/user", http.HandlerFunc(h.UserUpdate)).Methods(http.MethodPut)        // update current user
+
+	// Article handlers
+	h.router.Handle(APIURL+"/articles", http.HandlerFunc(h.GetAllArticles)).Methods(http.MethodGet)
+	h.router.Handle(APIURL+"/articles/feed", http.HandlerFunc(h.GetFeedArticles)).Methods(http.MethodGet)
+	h.router.Handle(APIURL+"/articles", http.HandlerFunc(h.CreateArticle)).Methods(http.MethodPost)
+	h.router.Handle(APIURL+"/articles/{slug}", http.HandlerFunc(h.GetArticle)).Methods(http.MethodGet)
+	h.router.Handle(APIURL+"/articles/{slug}", http.HandlerFunc(h.UpdateArticle)).Methods(http.MethodPut)
+	h.router.Handle(APIURL+"/articles/{slug}", http.HandlerFunc(h.DeleteArticle)).Methods(http.MethodDelete)
 }
 
 func (h *Handlers) GetRouter() *mux.Router {
