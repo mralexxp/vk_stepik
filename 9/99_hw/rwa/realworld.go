@@ -5,6 +5,7 @@ import (
 	"rwa/internal/handlers"
 	"rwa/internal/service"
 	"rwa/internal/sessions"
+	"rwa/internal/storage/profile"
 	"rwa/internal/storage/users"
 )
 
@@ -20,9 +21,10 @@ func GetApp() http.Handler {
 
 func NewApp() *App {
 	usersStore := users.NewUsersStore()
+	profileStore := profile.NewStore()
 	sessionManager := sessions.NewSessionManager()
 
-	svc := service.NewService(usersStore, sessionManager)
+	svc := service.NewService(usersStore, sessionManager, profileStore)
 
 	return &App{
 		H: handlers.NewHandlers(svc),
