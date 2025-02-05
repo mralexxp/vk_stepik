@@ -2,7 +2,7 @@ package service
 
 import "rwa/internal/models"
 
-type UserStorer interface {
+type UserStore interface {
 	Add(*models.User) (uint64, error)
 	GetByUsername(string) (*models.User, error)
 	GetByEmail(string) (*models.User, error)
@@ -19,15 +19,25 @@ type SessManager interface {
 	DestroyByID(uint64) (int, error)
 }
 
-type Service struct {
-	Users UserStorer
-	SM    SessManager
+type ProfileStore interface {
+	AddProfile(*models.Profile) error
+	DeleteProfile(uint64)
+	GetProfile(uint64) (*models.Profile, error)
+	Follow(uint64, uint64) error
+	Unfollow(uint64, uint64) error
 }
 
-func NewService(users UserStorer, sm SessManager) *Service {
+type Service struct {
+	Users   UserStore
+	Profile ProfileStore
+	SM      SessManager
+}
+
+func NewService(users UserStore, sm SessManager, profile ProfileStore) *Service {
 	return &Service{
-		Users: users,
-		SM:    sm,
+		Users:   users,
+		Profile: profile,
+		SM:      sm,
 	}
 }
 
