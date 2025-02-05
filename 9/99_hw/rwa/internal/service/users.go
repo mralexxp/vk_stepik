@@ -38,6 +38,12 @@ func (s *Service) RegisterUser(userDTO *dto.UserRequest) (*dto.UserResponse, err
 		return nil, err
 	}
 
+	// profile register
+	err = s.Profile.AddProfile(models.NewProfile(id))
+	if err != nil {
+		return nil, err
+	}
+
 	token, err := s.SM.Create(id)
 	if err != nil {
 		return nil, err
