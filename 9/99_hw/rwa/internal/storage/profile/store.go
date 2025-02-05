@@ -9,7 +9,6 @@ type Store struct {
 	db map[uint64]*models.Profile
 }
 
-// TODO: Профиль создается при регистрации юзера
 func NewStore() *Store {
 	return &Store{db: make(map[uint64]*models.Profile)}
 }
