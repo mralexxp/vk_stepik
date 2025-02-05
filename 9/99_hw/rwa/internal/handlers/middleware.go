@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"rwa/internal/errs"
 	"rwa/internal/utils"
+	"strings"
 )
 
 func (h *Handlers) ContentTypeMiddleWare(next http.Handler) http.Handler {
@@ -21,6 +22,13 @@ func (h *Handlers) AuthMiddleWare(next http.Handler) http.Handler {
 		if method, ok := h.NoAuth[r.URL.Path]; ok && method == r.Method {
 			next.ServeHTTP(w, r)
 			return
+		}
+
+		for prefURL, method := range h.NoAuthPref {
+			if strings.HasPrefix(r.URL.Path, prefURL) && method == r.Method {
+				next.ServeHTTP(w, r)
+				return
+			}
 		}
 
 		token, err := utils.GetHeaderToken(r)

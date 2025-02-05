@@ -11,11 +11,18 @@ const APIURL = "/api"
 
 var NoAuthURL map[string]string = map[string]string{
 	// users
-	"/api/users/login": http.MethodPost,
-	"/api/users":       http.MethodPost,
+	APIURL + "/users/login": http.MethodPost,
+	APIURL + "/users":       http.MethodPost,
 
 	// articles
-	"/api/articles": http.MethodGet,
+	APIURL + "/articles": http.MethodGet,
+}
+
+// При наличии большго количества подобных URL стоит реализовать префиксное дерево
+// example: /api/profiles/ = /api/profiles/*
+var NoAuthPrefURL map[string]string = map[string]string{
+	APIURL + "/profiles/": http.MethodGet, // /api/profiles/{username}
+	APIURL + "/articles/": http.MethodGet, // /api/articles/{slug}
 }
 
 type UserServicer interface {
@@ -28,16 +35,18 @@ type UserServicer interface {
 }
 
 type Handlers struct {
-	router *mux.Router
-	Svc    UserServicer
-	NoAuth map[string]string
+	router     *mux.Router
+	Svc        UserServicer
+	NoAuth     map[string]string
+	NoAuthPref map[string]string
 }
 
 func NewHandlers(svc UserServicer) *Handlers {
 	h := &Handlers{
-		router: mux.NewRouter(),
-		Svc:    svc,
-		NoAuth: NoAuthURL,
+		router:     mux.NewRouter(),
+		Svc:        svc,
+		NoAuth:     NoAuthURL,
+		NoAuthPref: NoAuthPrefURL,
 	}
 
 	// Регистрация ручек в роутере
