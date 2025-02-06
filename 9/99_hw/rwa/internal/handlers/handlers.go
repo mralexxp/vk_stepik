@@ -3,7 +3,9 @@ package handlers
 import (
 	"github.com/gorilla/mux"
 	"net/http"
+	"net/url"
 	"rwa/internal/dto"
+	"rwa/internal/models"
 	"rwa/internal/service"
 )
 
@@ -23,6 +25,10 @@ var NoAuthURL map[string]string = map[string]string{
 var NoAuthPrefURL map[string]string = map[string]string{
 	APIURL + "/profiles/": http.MethodGet, // /api/profiles/{username}
 	APIURL + "/articles/": http.MethodGet, // /api/articles/{slug}
+}
+
+type ArticleServicer interface {
+	ArticlesByFilter(*url.Values) ([]*models.Article, error)
 }
 
 type UserServicer interface {
@@ -70,7 +76,7 @@ func (h *Handlers) endpoints() {
 	h.router.Handle(APIURL+"/user", http.HandlerFunc(h.UserUpdate)).Methods(http.MethodPut)        // update current user
 
 	// Article handlers
-	h.router.Handle(APIURL+"/articles", http.HandlerFunc(h.GetAllArticles)).Methods(http.MethodGet)
+	h.router.Handle(APIURL+"/articles", http.HandlerFunc(h.GetArticlesByFilter)).Methods(http.MethodGet)
 	h.router.Handle(APIURL+"/articles/feed", http.HandlerFunc(h.GetFeedArticles)).Methods(http.MethodGet)
 	h.router.Handle(APIURL+"/articles", http.HandlerFunc(h.CreateArticle)).Methods(http.MethodPost)
 	h.router.Handle(APIURL+"/articles/{slug}", http.HandlerFunc(h.GetArticle)).Methods(http.MethodGet)
