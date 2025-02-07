@@ -23,14 +23,6 @@ type SessManager interface {
 	DestroyByID(uint64) (int, error)
 }
 
-type ProfileStore interface {
-	AddProfile(*models.Profile) error
-	DeleteProfile(uint64)
-	GetProfile(uint64) (*models.Profile, error)
-	Follow(uint64, uint64) error
-	Unfollow(uint64, uint64) error
-}
-
 type ArticlesStore interface {
 	Add(article *models.Article) uint64
 	Delete(id uint64) error
@@ -41,19 +33,16 @@ type ArticlesStore interface {
 
 type Service struct {
 	Users    UserStore
-	Profile  ProfileStore
 	Articles ArticlesStore
 	SM       SessManager
 }
 
 func NewService(
 	a ArticlesStore,
-	p ProfileStore,
 	u UserStore,
 	sm SessManager) *Service {
 	return &Service{
 		Users:    u,
-		Profile:  p,
 		Articles: a,
 		SM:       sm,
 	}

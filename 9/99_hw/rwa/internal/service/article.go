@@ -9,7 +9,6 @@ import (
 	"time"
 )
 
-// TODO: Service.ArticlesByFilter - недоработано
 func (s *Service) ArticlesByFilter(query *url.Values) (*dto.ArticlesResponse, error) {
 	af := models.NewArticleFilter(query)
 
