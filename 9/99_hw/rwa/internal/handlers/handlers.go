@@ -62,7 +62,6 @@ func (h *Handlers) endpoints() {
 
 	// Article handlers
 	h.router.Handle(APIURL+"/articles", http.HandlerFunc(h.GetArticlesByFilter)).Methods(http.MethodGet)
-	h.router.Handle(APIURL+"/articles/feed", http.HandlerFunc(h.GetFeedArticles)).Methods(http.MethodGet)
 	h.router.Handle(APIURL+"/articles", http.HandlerFunc(h.CreateArticle)).Methods(http.MethodPost)
 	h.router.Handle(APIURL+"/articles/{slug}", http.HandlerFunc(h.GetArticle)).Methods(http.MethodGet)
 	h.router.Handle(APIURL+"/articles/{slug}", http.HandlerFunc(h.UpdateArticle)).Methods(http.MethodPut)

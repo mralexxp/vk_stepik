@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"io"
 	"log"
 	"net/http"
 	"rwa/internal/dto"
@@ -13,17 +12,10 @@ import (
 func (h *Handlers) UserLogin(w http.ResponseWriter, r *http.Request) {
 	const op = "Handlers.UsersLogin"
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		errs.SendError(w, http.StatusUnprocessableEntity, "Error reading request body")
-		return
-	}
-	defer r.Body.Close()
-
-	// TODO: Может проще сразу json.Decoder?
 	requestDTO := &dto.UserRequest{}
 
-	err = json.Unmarshal(body, requestDTO)
+	err := json.NewDecoder(r.Body).Decode(requestDTO)
+	defer r.Body.Close()
 	if err != nil {
 		errs.SendError(w, http.StatusUnprocessableEntity, "Error parsing request body")
 		return
@@ -47,20 +39,12 @@ func (h *Handlers) UserLogin(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) UserRegister(w http.ResponseWriter, r *http.Request) {
 	const op = "Handlers.UsersRegister"
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		log.Println(op, err)
-		errs.SendError(w, http.StatusUnprocessableEntity, "body read error: "+err.Error())
-		return
-	}
-	defer r.Body.Close()
-
-	// TODO: Может сразу в json.Decoder?
-
 	requestDTO := &dto.UserRequest{}
 
-	err = json.Unmarshal(body, requestDTO)
+	err := json.NewDecoder(r.Body).Decode(requestDTO)
+	defer r.Body.Close()
 	if err != nil {
+		errs.SendError(w, http.StatusUnprocessableEntity, "Error parsing request body")
 		log.Println(op, err)
 		return
 	}
@@ -103,7 +87,7 @@ func (h *Handlers) UserGet(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) UserUpdate(w http.ResponseWriter, r *http.Request) {
 	const op = "Handlers.UserUpdate"
 
-	// Для получения ID пользователя в бизнес-логике, в контексте передавать такую информацию опасно?
+	// Через контекст от MW нельзя!
 	token, err := utils.GetHeaderToken(r)
 	if err != nil {
 		errs.SendError(w, http.StatusUnauthorized, err.Error())
@@ -112,11 +96,11 @@ func (h *Handlers) UserUpdate(w http.ResponseWriter, r *http.Request) {
 
 	requestDTO := &dto.UserRequest{}
 	err = json.NewDecoder(r.Body).Decode(requestDTO)
+	defer r.Body.Close()
 	if err != nil {
 		errs.SendError(w, http.StatusUnprocessableEntity, "Error parsing request body")
 		return
 	}
-	defer r.Body.Close()
 
 	requestDTO.User.Token = token
 	responseDTO, err := h.Svc.UpdateUser(requestDTO)
