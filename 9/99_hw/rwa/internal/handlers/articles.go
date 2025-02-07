@@ -29,15 +29,6 @@ func (h *Handlers) GetArticlesByFilter(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// Все статьи отсортированные по дате, на авторов которых подписан юзер
-func (h *Handlers) GetFeedArticles(w http.ResponseWriter, r *http.Request) {
-	const op = "Handlers.GetFeedArticles"
-
-	// TODO: НЕ ТЕСТИРУЕТСЯ
-
-	panic(op + ": not yet implemented")
-}
-
 func (h *Handlers) CreateArticle(w http.ResponseWriter, r *http.Request) {
 	const op = "Handlers.CreateArticle"
 
