@@ -11,7 +11,7 @@ import (
 type Store struct {
 	db map[uint64]*models.User
 
-	// relations
+	// index
 	UsernameID map[string]uint64
 	EmailID    map[string]uint64
 

@@ -1,15 +1,39 @@
 package handlers
 
-import "net/http"
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+	"rwa/internal/dto"
+	"rwa/internal/errs"
+	"rwa/internal/utils"
+)
 
-func (h *Handlers) GetAllArticles(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) GetArticlesByFilter(w http.ResponseWriter, r *http.Request) {
 	const op = "Handlers.GetAllArticles"
 
-	panic(op + ": not yet implemented")
+	query := r.URL.Query()
+
+	response, err := h.Svc.ArticlesByFilter(&query)
+	if err != nil {
+		errs.SendError(w, http.StatusUnprocessableEntity, "unknown error: "+err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		log.Printf("%s: %s", op, err.Error())
+		return
+	}
+
 }
 
+// Все статьи отсортированные по дате, на авторов которых подписан юзер
 func (h *Handlers) GetFeedArticles(w http.ResponseWriter, r *http.Request) {
 	const op = "Handlers.GetFeedArticles"
+
+	// TODO: НЕ ТЕСТИРУЕТСЯ
 
 	panic(op + ": not yet implemented")
 }
@@ -17,7 +41,32 @@ func (h *Handlers) GetFeedArticles(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) CreateArticle(w http.ResponseWriter, r *http.Request) {
 	const op = "Handlers.CreateArticle"
 
-	panic(op + ": not yet implemented")
+	token, err := utils.GetHeaderToken(r)
+	if err != nil {
+		errs.SendError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	aReq := &dto.ArticleRequest{}
+	err = json.NewDecoder(r.Body).Decode(aReq)
+	if err != nil {
+		errs.SendError(w, http.StatusUnprocessableEntity, "unknown error: "+err.Error())
+		return
+	}
+	defer r.Body.Close()
+
+	aRes, err := h.Svc.CreateArticle(aReq, token)
+	if err != nil {
+		errs.SendError(w, http.StatusUnprocessableEntity, "unknown error: "+err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	err = json.NewEncoder(w).Encode(aRes)
+	if err != nil {
+		log.Printf("%s: %s", op, err.Error())
+		return
+	}
 }
 
 func (h *Handlers) GetArticle(w http.ResponseWriter, r *http.Request) {

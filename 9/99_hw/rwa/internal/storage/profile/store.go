@@ -5,6 +5,8 @@ import (
 	"rwa/internal/models"
 )
 
+// TODO: Объединить с Users
+
 type Store struct {
 	db map[uint64]*models.Profile
 }

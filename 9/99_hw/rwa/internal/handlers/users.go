@@ -18,7 +18,9 @@ func (h *Handlers) UserLogin(w http.ResponseWriter, r *http.Request) {
 		errs.SendError(w, http.StatusUnprocessableEntity, "Error reading request body")
 		return
 	}
+	defer r.Body.Close()
 
+	// TODO: Может проще сразу json.Decoder?
 	requestDTO := &dto.UserRequest{}
 
 	err = json.Unmarshal(body, requestDTO)
@@ -51,6 +53,9 @@ func (h *Handlers) UserRegister(w http.ResponseWriter, r *http.Request) {
 		errs.SendError(w, http.StatusUnprocessableEntity, "body read error: "+err.Error())
 		return
 	}
+	defer r.Body.Close()
+
+	// TODO: Может сразу в json.Decoder?
 
 	requestDTO := &dto.UserRequest{}
 
@@ -111,6 +116,7 @@ func (h *Handlers) UserUpdate(w http.ResponseWriter, r *http.Request) {
 		errs.SendError(w, http.StatusUnprocessableEntity, "Error parsing request body")
 		return
 	}
+	defer r.Body.Close()
 
 	requestDTO.User.Token = token
 	responseDTO, err := h.Svc.UpdateUser(requestDTO)

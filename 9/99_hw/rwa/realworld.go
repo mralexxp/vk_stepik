@@ -5,12 +5,14 @@ import (
 	"rwa/internal/handlers"
 	"rwa/internal/service"
 	"rwa/internal/sessions"
+	"rwa/internal/storage/articles"
 	"rwa/internal/storage/profile"
 	"rwa/internal/storage/users"
 )
 
 type App struct {
 	H *handlers.Handlers
+	S *service.Service
 }
 
 func GetApp() http.Handler {
@@ -22,11 +24,13 @@ func GetApp() http.Handler {
 func NewApp() *App {
 	usersStore := users.NewUsersStore()
 	profileStore := profile.NewStore()
+	articlesStore := articles.NewStore()
 	sessionManager := sessions.NewSessionManager()
 
-	svc := service.NewService(usersStore, sessionManager, profileStore)
+	svc := service.NewService(articlesStore, profileStore, usersStore, sessionManager)
 
 	return &App{
 		H: handlers.NewHandlers(svc),
+		S: svc,
 	}
 }

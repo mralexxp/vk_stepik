@@ -3,9 +3,6 @@ package handlers
 import (
 	"github.com/gorilla/mux"
 	"net/http"
-	"net/url"
-	"rwa/internal/dto"
-	"rwa/internal/models"
 	"rwa/internal/service"
 )
 
@@ -27,27 +24,14 @@ var NoAuthPrefURL map[string]string = map[string]string{
 	APIURL + "/articles/": http.MethodGet, // /api/articles/{slug}
 }
 
-type ArticleServicer interface {
-	ArticlesByFilter(*url.Values) ([]*models.Article, error)
-}
-
-type UserServicer interface {
-	RegisterUser(*dto.UserRequest) (*dto.UserResponse, error)
-	LoginUser(*dto.UserRequest) (*dto.UserResponse, error)
-	GetCurrentUser(string) (*dto.UserResponse, error)
-	UpdateUser(*dto.UserRequest) (*dto.UserResponse, error)
-
-	GetSessionManager() service.SessManager
-}
-
 type Handlers struct {
 	router     *mux.Router
-	Svc        UserServicer
+	Svc        *service.Service
 	NoAuth     map[string]string
 	NoAuthPref map[string]string
 }
 
-func NewHandlers(svc UserServicer) *Handlers {
+func NewHandlers(svc *service.Service) *Handlers {
 	h := &Handlers{
 		router:     mux.NewRouter(),
 		Svc:        svc,
