@@ -54,10 +54,11 @@ func (h *Handlers) endpoints() {
 	h.router.MethodNotAllowedHandler = http.HandlerFunc(h.MethodNotAllowedHandler)
 
 	// Auth handlers
-	h.router.Handle(APIURL+"/users/login", http.HandlerFunc(h.UserLogin)).Methods(http.MethodPost) // auth user
-	h.router.Handle(APIURL+"/users", http.HandlerFunc(h.UserRegister)).Methods(http.MethodPost)    // register new user
-	h.router.Handle(APIURL+"/user", http.HandlerFunc(h.UserGet)).Methods(http.MethodGet)           // get current user
-	h.router.Handle(APIURL+"/user", http.HandlerFunc(h.UserUpdate)).Methods(http.MethodPut)        // update current user
+	h.router.Handle(APIURL+"/users/login", http.HandlerFunc(h.UserLogin)).Methods(http.MethodPost)  // auth user
+	h.router.Handle(APIURL+"/users", http.HandlerFunc(h.UserRegister)).Methods(http.MethodPost)     // register new user
+	h.router.Handle(APIURL+"/user", http.HandlerFunc(h.UserGet)).Methods(http.MethodGet)            // get current user
+	h.router.Handle(APIURL+"/user", http.HandlerFunc(h.UserUpdate)).Methods(http.MethodPut)         // update current user
+	h.router.Handle(APIURL+"/user/logout", http.HandlerFunc(h.UserLogout)).Methods(http.MethodPost) // logout current user
 
 	// Article handlers
 	h.router.Handle(APIURL+"/articles", http.HandlerFunc(h.GetArticlesByFilter)).Methods(http.MethodGet)

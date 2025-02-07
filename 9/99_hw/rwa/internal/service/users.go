@@ -159,3 +159,12 @@ func (s *Service) UpdateUser(userDTO *dto.UserRequest) (*dto.UserResponse, error
 
 	return &dto.UserResponse{User: response}, nil
 }
+
+func (s *Service) LogoutUser(token string) (*dto.UserResponse, error) {
+	_, err := s.SM.DestroyByToken(token)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+}

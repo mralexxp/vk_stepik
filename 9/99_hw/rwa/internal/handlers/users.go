@@ -131,3 +131,19 @@ func (h *Handlers) UserUpdate(w http.ResponseWriter, r *http.Request) {
 		log.Println(op + ": " + err.Error())
 	}
 }
+
+func (h *Handlers) UserLogout(w http.ResponseWriter, r *http.Request) {
+	const op = "Handlers.UserLogout"
+
+	token, err := utils.GetHeaderToken(r)
+	if err != nil {
+		errs.SendError(w, http.StatusUnauthorized, err.Error())
+	}
+
+	_, err = h.Svc.LogoutUser(token)
+	if err != nil {
+		errs.SendError(w, http.StatusUnprocessableEntity, err.Error())
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
