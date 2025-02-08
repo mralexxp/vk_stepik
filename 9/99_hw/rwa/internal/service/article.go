@@ -3,11 +3,20 @@ package service
 import (
 	"fmt"
 	"github.com/gosimple/slug"
+	"math/rand"
 	"net/url"
 	"rwa/internal/dto"
 	"rwa/internal/models"
 	"time"
 )
+
+type ArticlesStore interface {
+	Add(*models.Article) uint64
+	Delete(uint64) error
+	Get(uint64) (*models.Article, error)
+	GetSlugID(string) (uint64, error)
+	GetByFilter(*models.ArticleFilter) ([]*models.Article, error)
+}
 
 func (s *Service) ArticlesByFilter(query *url.Values) (*dto.ArticlesResponse, error) {
 	af := models.NewArticleFilter(query)
@@ -50,8 +59,17 @@ func (s *Service) CreateArticle(aReq *dto.ArticleRequest, token string) (*dto.Ar
 		return nil, fmt.Errorf("token is invalid")
 	}
 
+	// уникальные окончания
+	charset := "abcdefghijklmnopqrstuvwxyz0123456789"
+	b := make([]byte, 4)
+	for i := range b {
+		b[i] = charset[rand.Intn(len(charset))]
+	}
+
+	aSlug := slug.Make(aReq.Article.Title) + "-" + string(b)
+
 	article := &models.Article{
-		Slug:        slug.Make(aReq.Article.Title),
+		Slug:        aSlug,
 		Title:       aReq.Article.Title,
 		Description: aReq.Article.Description,
 		Body:        aReq.Article.Body,

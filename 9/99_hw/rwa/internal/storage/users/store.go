@@ -119,7 +119,15 @@ func (s *Store) DeleteByID(id uint64) error {
 func (s *Store) Update(updateUser *models.User) (*models.User, error) {
 	currentUser, ok := s.db[updateUser.ID]
 	if !ok {
-		return nil, fmt.Errorf("user %d not found", updateUser.ID)
+		return nil, fmt.Errorf("user '%d' not found", updateUser.ID)
+	}
+
+	if _, ok := s.UsernameID[updateUser.Username]; ok {
+		return nil, fmt.Errorf("username '%s' already exists", updateUser.Username)
+	}
+
+	if _, ok := s.EmailID[updateUser.Email]; ok {
+		return nil, fmt.Errorf("email '%s' already exists", updateUser.Username)
 	}
 
 	// Сохранение значений для обновления базы по окончанию

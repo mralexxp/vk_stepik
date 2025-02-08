@@ -8,7 +8,6 @@ type UserResponse struct {
 	User *UserDataResponse `json:"user" valid:"required"`
 }
 
-// user DTO
 type UserDataRequest struct {
 	Username string `json:"username,omitempty"`
 	Email    string `json:"email,omitempty"`

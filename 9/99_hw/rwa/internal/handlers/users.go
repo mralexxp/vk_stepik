@@ -70,24 +70,27 @@ func (h *Handlers) UserGet(w http.ResponseWriter, r *http.Request) {
 	token, err := utils.GetHeaderToken(r)
 	if err != nil {
 		errs.SendError(w, http.StatusUnauthorized, err.Error())
+		return
 	}
 
 	responseDTO, err := h.Svc.GetCurrentUser(token)
 	if err != nil {
 		errs.SendError(w, http.StatusUnprocessableEntity, err.Error())
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(responseDTO)
 	if err != nil {
 		log.Println(op + ": " + err.Error())
+		return
 	}
 }
 
 func (h *Handlers) UserUpdate(w http.ResponseWriter, r *http.Request) {
 	const op = "Handlers.UserUpdate"
 
-	// Через контекст от MW нельзя!
+	// Через контекст от MW нельзя
 	token, err := utils.GetHeaderToken(r)
 	if err != nil {
 		errs.SendError(w, http.StatusUnauthorized, err.Error())
@@ -113,6 +116,7 @@ func (h *Handlers) UserUpdate(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(w).Encode(responseDTO)
 	if err != nil {
 		log.Println(op + ": " + err.Error())
+		return
 	}
 }
 
@@ -122,11 +126,13 @@ func (h *Handlers) UserLogout(w http.ResponseWriter, r *http.Request) {
 	token, err := utils.GetHeaderToken(r)
 	if err != nil {
 		errs.SendError(w, http.StatusUnauthorized, err.Error())
+		return
 	}
 
 	_, err = h.Svc.LogoutUser(token)
 	if err != nil {
 		errs.SendError(w, http.StatusUnprocessableEntity, err.Error())
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)

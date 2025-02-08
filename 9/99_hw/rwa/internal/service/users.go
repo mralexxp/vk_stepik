@@ -9,6 +9,17 @@ import (
 	"time"
 )
 
+type UserStore interface {
+	Add(*models.User) (uint64, error)
+	GetByUsername(string) (*models.User, error)
+	GetByEmail(string) (*models.User, error)
+	GetByID(uint64) (*models.User, error)
+	DeleteByUsername(string) error
+	DeleteByEmail(string) error
+	DeleteByID(uint64) error
+	Update(*models.User) (*models.User, error)
+}
+
 func (s *Service) RegisterUser(userDTO *dto.UserRequest) (*dto.UserResponse, error) {
 	ok, err := govalidator.ValidateStruct(userDTO)
 	if err != nil {

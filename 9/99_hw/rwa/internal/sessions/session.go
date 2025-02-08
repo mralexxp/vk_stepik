@@ -31,7 +31,6 @@ func NewSessionManager() *SessionManager {
 	}
 }
 
-// создает новую сессию в хранилище
 func (sm *SessionManager) Create(id uint64) (string, error) {
 	if id == 0 {
 		return "", fmt.Errorf("id is null")
@@ -56,7 +55,6 @@ func (sm *SessionManager) Create(id uint64) (string, error) {
 	return public, nil
 }
 
-// проверяет валидность токена и возвращает id, которому принадлежит токен и успешность операции
 func (sm *SessionManager) Check(public string) (uint64, bool) {
 	private := GetPrivateKey(public)
 
@@ -76,7 +74,6 @@ func (sm *SessionManager) Check(public string) (uint64, bool) {
 	return sess.ID, true
 }
 
-// удаляет сессию по публичному токену
 func (sm *SessionManager) DestroyByToken(public string) (uint64, error) {
 	if public == "" {
 		return 0, fmt.Errorf("token is empty")
@@ -96,7 +93,6 @@ func (sm *SessionManager) DestroyByToken(public string) (uint64, error) {
 	return sess.ID, nil
 }
 
-// удаляет сессии пользователя по нику
 func (sm *SessionManager) DestroyByID(id uint64) (int, error) {
 	if id == 0 {
 		return 0, fmt.Errorf("username is empty")
@@ -116,7 +112,7 @@ func (sm *SessionManager) DestroyByID(id uint64) (int, error) {
 	return deleted, nil
 }
 
-// TODO: Завернуть в горутину, которая триггерит или вызывает этот метод.
+// Завернуть в горутину, которая триггерит или вызывает этот метод.
 // удаляет из памяти все истекшие сессии
 func (sm *SessionManager) ClearExpired() int {
 	sm.MU.Lock()

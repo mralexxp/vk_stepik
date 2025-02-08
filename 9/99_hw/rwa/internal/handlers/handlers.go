@@ -20,10 +20,8 @@ func NewHandlers(svc *service.Service) *Handlers {
 		NoAuthPref: NoAuthPrefURL,
 	}
 
-	// Регистрация ручек в роутере
 	h.endpoints()
 
-	// Middleware
 	h.router.Use(h.ContentTypeMiddleWare)
 	h.router.Use(h.AuthMiddleWare)
 

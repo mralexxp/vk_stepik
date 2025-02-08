@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"rwa/internal/errs"
 	"rwa/internal/utils"
@@ -39,7 +38,7 @@ func (h *Handlers) AuthMiddleWare(next http.Handler) http.Handler {
 
 		id, ok := h.Svc.GetSessionManager().Check(token)
 		if !ok {
-			errs.SendError(w, http.StatusUnauthorized, fmt.Errorf("invalid token").Error())
+			errs.SendError(w, http.StatusUnauthorized, "invalid token")
 			return
 		}
 
